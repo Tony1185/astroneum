@@ -100,6 +100,83 @@ getPeriod(): Period
 ```
 Returns the currently active `Period`.
 
+### `serializeState()` / `loadState()`
+
+```typescript
+serializeState(): SerializedChartState
+loadState(state: SerializedChartState): void
+```
+
+Capture and restore the chart's user-visible state — theme, locale,
+timezone, symbol, period, styles, indicators, and drawing overlays —
+as a JSON-safe object.
+
+```ts
+// save
+localStorage.setItem('chart-state', JSON.stringify(chartRef.current!.serializeState()))
+
+// restore on mount
+const saved = localStorage.getItem('chart-state')
+if (saved) chartRef.current!.loadState(JSON.parse(saved))
+```
+
+`loadState()` is a best-effort restore: missing or unknown indicator /
+overlay names are silently skipped (matching the engine's behaviour for
+unregistered names). The `version` field lets the format evolve without
+breaking older payloads; payloads from a newer format than the current
+library understands are ignored.
+
+---
+
+## Accessibility
+
+`<AstroneumChart>` accepts an `accessible` prop (default `false`) that
+opts the canvas into screen-reader and keyboard-focus support without
+changing visuals:
+
+- The container gets `tabindex=0`, `role="img"`, and an `aria-label`
+  (defaults to `"<ticker> <period text> chart"`; override via the
+  `ariaLabel` prop).
+- A visually-hidden `aria-live="polite"` region announces OHLCV on
+  crosshair changes, throttled to ~10 updates / second to avoid
+  flooding screen-reader queues.
+
+```tsx
+<AstroneumChart
+  symbol={{ ticker: 'BTC-USD' }}
+  period={{ multiplier: 1, timespan: 'minute', text: '1m' }}
+  datafeed={datafeed}
+  accessible
+  ariaLabel='Bitcoin / USD 1-minute candles'
+/>
+```
+
+For users who require a high-contrast UI, set `theme="high-contrast"`
+(or call `setTheme('high-contrast')`). The bundled theme uses a
+black background, white candles/grid, and yellow accents with strong
+focus rings.
+
+---
+
+## Lazy locales
+
+Only `en-US` is bundled with the main entry. Load any other built-in
+locale on demand:
+
+```ts
+import { loadLocale, BUILTIN_LOCALES } from 'astroneum'
+
+await loadLocale('ja-JP')
+chartRef.current?.setLocale('ja-JP')
+
+console.log(BUILTIN_LOCALES) // ['en-US', 'zh-CN', 'ja-JP', ...]
+```
+
+`loadLocale(key)` resolves with the dictionary on success, or `null`
+when `key` is not a built-in locale. Concurrent calls for the same
+locale are de-duplicated. To register a fully custom locale,
+keep using `loadLocales(key, dictionary)`.
+
 ---
 
 ## Subpath entry points
@@ -230,6 +307,7 @@ import type {
   // Core
   AstroneumOptions,
   AstroneumHandle,
+  SerializedChartState,
   Datafeed,
   SymbolInfo,
   Period,

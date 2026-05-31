@@ -151,6 +151,19 @@
     border-radius: 2px;
   }
 
+  // — Screen-reader only utility, used by the polite aria-live region —
+  .astroneum-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
   // — Chart layout —
   position: relative;
   display: flex;

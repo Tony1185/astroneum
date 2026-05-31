@@ -97,7 +97,7 @@ export type IndicatorKind = 'sma' | 'ema' | 'rsi'
 export interface IndicatorWorkerRequest {
   kind: IndicatorKind
   period: number
-  /** Packed column store from WasmIndicators.packBars() */
+  /** Packed column store from TypedArrayIndicators.packBars() */
   cols: Float64Array
   n: number
 }

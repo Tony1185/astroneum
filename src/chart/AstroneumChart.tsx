@@ -24,7 +24,7 @@ import { mountChartPlugins } from '@/plugin'
 
 import { translateTimezone } from '@/widget/timezone-modal/data'
 
-import { type Period, type AstroneumOptions, type AstroneumHandle } from '@/types'
+import { type Period, type AstroneumOptions, type AstroneumHandle, type SerializedChartState } from '@/types'
 
 import { useChartStore } from '@/store/chartStore'
 import { useIndicatorStore } from '@/store/indicatorStore'
@@ -155,6 +155,7 @@ const AstroneumChart = forwardRef<AstroneumHandle, AstroneumChartProps>((props, 
   const widgetContainerRef = useRef<HTMLDivElement | null>(null)
   const snapperRef = useRef<DrawingSnapper | null>(null)
   const priceUnitDomRef = useRef<HTMLElement | null>(null)
+  const ariaLiveRef = useRef<HTMLDivElement | null>(null)
 
   // ---------------------------------------------------------------------------
   // Focused stores — each slice owns a single concern
@@ -244,7 +245,56 @@ const AstroneumChart = forwardRef<AstroneumHandle, AstroneumChartProps>((props, 
     getLastDataTimestamp: () => {
       const dataList = widgetRef.current?.getDataList() ?? []
       return dataList.length > 0 ? (dataList[dataList.length - 1].timestamp ?? null) : null
-    }
+    },
+    serializeState: (): SerializedChartState => {
+      const widget = widgetRef.current
+      const overlays = widget
+        ? widget.getOverlays().map(o => ({
+          name: o.name,
+          points: o.points,
+          styles: o.styles,
+          lock: o.lock,
+          visible: o.visible,
+        }))
+        : []
+      return {
+        version: 1,
+        theme: chart.theme(),
+        locale: chart.locale(),
+        timezone: chart.timezone().key,
+        symbol: chart.symbol(),
+        period: chart.period(),
+        styles: deepClone(chart.styles() ?? {}),
+        mainIndicators: deepClone(indicators.mainIndicators()),
+        subIndicators: Object.keys(indicators.subIndicators()),
+        overlays,
+      }
+    },
+    loadState: (state: SerializedChartState): void => {
+      const widget = widgetRef.current
+      if (state.version !== 1) {
+        // Forward-compatible: ignore states from a newer format we don't understand.
+        return
+      }
+      chart.setTheme(state.theme)
+      chart.setLocale(state.locale)
+      chart.setTimezone({ key: state.timezone, text: translateTimezone(state.timezone, state.locale) })
+      chart.setSymbol(state.symbol)
+      chart.setPeriod(state.period)
+      if (state.styles) chart.setStyles(state.styles)
+      if (!widget) return
+      // Replace overlays: drop existing user drawings, then recreate.
+      widget.removeOverlay()
+      for (const o of state.overlays) {
+        widget.createOverlay({
+          name: o.name,
+          points: o.points as never,
+          styles: o.styles as never,
+          lock: o.lock,
+          visible: o.visible,
+        })
+      }
+    },
   }), [])
 
   const resizeFrameRef = useRef<number | null>(null)
@@ -363,6 +413,35 @@ const AstroneumChart = forwardRef<AstroneumHandle, AstroneumChartProps>((props, 
       }
     }
     widget?.setDataLoader(dataLoader)
+
+    // Accessibility: announce crosshair OHLCV via a polite aria-live region
+    // so screen-reader users can read the bar under the cursor. Off unless
+    // `accessible` is true. Sampled at most ~10/s to avoid flooding AT
+    // queues; expanded panes that don't carry candle data emit no update.
+    if (props.accessible) {
+      let lastAnnounce = 0
+      widget?.subscribeAction('onCrosshairChange', (data: unknown) => {
+        const node = ariaLiveRef.current
+        if (!node) return
+        const now = performance.now()
+        if (now - lastAnnounce < 100) return
+        lastAnnounce = now
+        const c = data as { kindsData?: Record<string, { open?: number; high?: number; low?: number; close?: number; volume?: number; timestamp?: number }> } | null
+        const candle = c?.kindsData?.candle_pane
+        if (!candle || candle.open === undefined) {
+          node.textContent = ''
+          return
+        }
+        const sym = chart.symbol().ticker
+        const p = chart.period().text
+        const fmt = (v?: number): string => v === undefined ? '—' : String(v)
+        node.textContent =
+          `${sym} ${p}, ` +
+          `open ${fmt(candle.open)}, high ${fmt(candle.high)}, ` +
+          `low ${fmt(candle.low)}, close ${fmt(candle.close)}, ` +
+          `volume ${fmt(candle.volume)}`
+      })
+    }
 
     widget?.subscribeAction('onIndicatorTooltipFeatureClick', (data: unknown) => {
       const { paneId, indicator, feature } = data as IndicatorTooltipFeatureClickData
@@ -487,7 +566,25 @@ const AstroneumChart = forwardRef<AstroneumHandle, AstroneumChartProps>((props, 
   }, [styles])
 
   return (
-    <div className={`astroneum${props.className ? ` ${props.className}` : ''}`} data-theme={theme} style={props.style}>
+    <div
+      className={`astroneum${props.className ? ` ${props.className}` : ''}`}
+      data-theme={theme}
+      style={props.style}
+      {...(props.accessible ? {
+        tabIndex: 0,
+        role: 'img' as const,
+        'aria-label': props.ariaLabel ?? `${symbol.ticker} ${period.text} chart`,
+      } : {})}
+    >
+      {props.accessible && (
+        <div
+          ref={(el) => { ariaLiveRef.current = el }}
+          className='astroneum-sr-only'
+          role='status'
+          aria-live='polite'
+          aria-atomic='true'
+        />
+      )}
       <i className="icon-close astroneum-load-icon"/>
       {ui.symbolSearchModalVisible() && (
         <SymbolSearchModal

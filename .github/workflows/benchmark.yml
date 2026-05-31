@@ -1,0 +1,60 @@
+name: Benchmark
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'tsup.config.ts'
+      - '.github/workflows/benchmark.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Bundle size budget
+        run: pnpm size
+
+      - name: Perf tests
+        id: perf
+        run: |
+          set +e
+          pnpm exec tsx --test src/__tests__/perf/*.test.ts 2>&1 | tee perf.txt
+          ret=${PIPESTATUS[0]}
+          echo "exit=$ret" >> "$GITHUB_OUTPUT"
+          exit $ret
+
+      - name: Comment perf results
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs')
+            if (!fs.existsSync('perf.txt')) return
+            const body = '### Benchmark results\n\n```\n' +
+              fs.readFileSync('perf.txt', 'utf8').slice(-6000) +
+              '\n```'
+            const { owner, repo } = context.repo
+            const issue_number = context.issue.number
+            await github.rest.issues.createComment({ owner, repo, issue_number, body })

@@ -9,6 +9,54 @@ once it reaches v1.0. Until then, minor releases may include breaking changes
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-06-15
+
+### Added — v0.5 Polish (partial)
+
+- **Lazy locale loading** ([src/i18n/index.ts](src/i18n/index.ts)) —
+  only `en-US` is bundled eagerly; the other 18 locales are loaded on
+  demand via dynamic `import()`. New public exports:
+  - `loadLocale(key)` — async loader for built-in locales
+  - `BUILTIN_LOCALES` — the canonical list
+  - Existing `loadLocales(key, dictionary)` continues to work for custom
+    translations.
+- **Drawing & layout persistence** — `serializeState()` and `loadState(state)`
+  on `AstroneumHandle` capture / restore theme, locale, timezone, symbol,
+  period, styles, indicators, and overlays as JSON.
+  See [docs/api.md](docs/api.md#serializestate--loadstate).
+- **Accessibility pass** — opt-in via the new `accessible` prop on
+  `<AstroneumChart>`. When enabled, the chart container gets `tabindex=0`,
+  `role="img"`, and an `aria-label`; a visually-hidden `aria-live="polite"`
+  region announces OHLCV on crosshair changes (throttled to ~10/s).
+- **High-contrast theme** — set `theme="high-contrast"` for a
+  WCAG-conscious black/white/yellow palette with strong focus rings.
+- **Benchmark CI workflow**
+  ([.github/workflows/benchmark.yml](.github/workflows/benchmark.yml)) —
+  runs `pnpm size` and the perf tests on every PR and posts the perf
+  output as a sticky comment.
+
+### Changed
+
+- `WasmIndicators.ts` renamed to **`TypedArrayIndicators.ts`** to match
+  what it actually is (a column-store TS implementation). A back-compat
+  shim is kept at the old path with `@deprecated` JSDoc and will be
+  removed in v1.0.
+
+### Deferred
+
+Still tracked for v0.6 – v1.0; not in this release:
+
+- WebGPU renderer / real Rust + WASM SIMD indicators
+- `OrderManager` + broker package
+- Heatmap / footprint / options-chain panes
+- Full mobile audit & Storybook site
+- React component tests (jsdom + RTL) + Playwright visual regression
+- Compare overlay UI
+
+---
+
+## [0.2.0] — 2026-05-30
+
 ### Added — v0.3 Hardening
 
 - **Subpath exports** for tree-shakeable, opt-in feature modules
@@ -47,24 +95,9 @@ once it reaches v1.0. Until then, minor releases may include breaking changes
   `./styles/index.less` (was a leftover from a SCSS migration and caused the
   build to fail outright on a clean install).
 
-### Deferred
-
-Items from the roadmap that intentionally did NOT ship in this release:
-
-- **Lazy locale loading** — requires an API change to `setLocale` and a
-  per-locale bundle chunk strategy. Tracked for **v0.5**. The current eager
-  bundling of all 19 locales is unchanged in this release.
-- **React component tests** (`@testing-library/react` + jsdom). Requires a
-  new test runner + DOM environment that does not exist in the repo yet.
-  Tracked for **v0.5**.
-- **Visual regression tests** (Playwright). Tracked for **v0.5**.
-- **WebGPU renderer, real WASM/SIMD indicators, benchmark CI, accessibility
-  pass, drawing persistence, new chart types, Storybook site.** Tracked under
-  v0.5 – v1.0 in the README roadmap.
-
 ---
 
-## [0.2.0] — 2026-05-30
+## [0.2.0-baseline] — 2026-05-30
 
 Initial public roadmap baseline. See git history for details prior to this
 changelog being introduced.

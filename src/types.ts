@@ -98,6 +98,47 @@ export interface AstroneumOptions {
   style?: React.CSSProperties
   /** Additional class names applied to the root `.astroneum` container element. */
   className?: string
+  /**
+   * Make the chart canvas focusable + emit an `aria-live` summary of the
+   * crosshair OHLCV. Off by default to avoid surprising existing apps.
+   * When `true`, the chart container gets `tabindex=0`, `role="img"`,
+   * and an `aria-label` describing the current symbol. Cursor moves
+   * announce OHLCV through a visually-hidden polite live region.
+   */
+  accessible?: boolean
+  /**
+   * Optional ARIA label override for the chart canvas. Only used when
+   * `accessible` is true. Defaults to a string built from the symbol
+   * ticker and current period.
+   */
+  ariaLabel?: string
+}
+
+/**
+ * Serialised chart state — drawings, indicators, and the user-facing
+ * surface settings (theme, locale, timezone, symbol, period, styles).
+ *
+ * The shape is intentionally simple JSON so it can be persisted to
+ * `localStorage`, a URL, or a backend. The `version` field lets the
+ * library evolve the format without breaking older payloads.
+ */
+export interface SerializedChartState {
+  version: 1
+  theme: string
+  locale: string
+  timezone: string
+  symbol: SymbolInfo
+  period: Period
+  styles: DeepPartial<Styles>
+  mainIndicators: IndicatorDef[]
+  subIndicators: string[]
+  overlays: Array<{
+    name: string
+    points?: ReadonlyArray<{ timestamp?: number; value?: number; dataIndex?: number }>
+    styles?: unknown
+    lock?: boolean
+    visible?: boolean
+  }>
 }
 
 export interface AstroneumHandle {
@@ -115,6 +156,18 @@ export interface AstroneumHandle {
   getPeriod(): Period
   getDataListLength(): number
   getLastDataTimestamp(): number | null
+  /**
+   * Capture the chart's current user-visible state as a JSON-safe object.
+   * Includes theme, locale, timezone, symbol, period, styles, indicators,
+   * and drawing overlays. Pair with `loadState()` to restore.
+   */
+  serializeState(): SerializedChartState
+  /**
+   * Restore a previously-captured state. Best-effort: missing or unknown
+   * indicator / overlay names are silently skipped, matching the engine's
+   * behaviour for unregistered names.
+   */
+  loadState(state: SerializedChartState): void
 }
 
 // ---------------------------------------------------------------------------

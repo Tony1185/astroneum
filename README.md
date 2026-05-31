@@ -568,40 +568,40 @@ stable release. See [CHANGELOG.md](CHANGELOG.md) for what has shipped.
 4. [x] **Subpath exports** — see [Subpath Exports](#subpath-exports-v04).
        Eight new entry points: `astroneum/replay`, `/multichart`, `/watchlist`,
        `/portfolio`, `/alerts`, `/script`, `/datafeeds/polygon`, `/datafeeds/crypto`.
-5. [ ] **Lazy locales.** Generate one chunk per locale and load on demand from
-       `setLocale(...)`; keep `en-US` as the only statically bundled fallback.
-       Requires an API change — deferred to v0.5.
+5. [x] **Lazy locales.** Only `en-US` is bundled eagerly; the other 18 locales
+       load on demand via `loadLocale(key)` (dynamic `import()`). See
+       [src/i18n/index.ts](src/i18n/index.ts).
 6. [ ] **Datafeed split (full).** The reference datafeeds are now reachable
        via subpath but are still re-exported from the root entry for backwards
        compatibility. The root re-export will be removed in v1.0.
 
-### v0.5 — Performance & Rendering
+### v0.5 — Performance & Rendering (partial)
 
-7. **Rename / implement real WASM path.** Either rename
-   `WasmIndicators.ts` to `TypedArrayIndicators.ts`, or ship a real
-   WASM+SIMD build (AssemblyScript or Rust+`wasm-pack`) with the TS path as a
-   fallback. Gate behind feature detection.
-8. **WebGPU renderer (experimental).** Add an optional WebGPU candle renderer
-   behind `PerformanceMode`, with automatic WebGL2 → Canvas2D fallback.
-9. **Benchmark CI.** Run [src/__tests__/perf](src/__tests__/perf) on every PR
-   and post a regression comment when budgets are exceeded.
-10. **Backpressure SLA.** Document and enforce a max tick rate per pane; expose
+7. [x] **Renamed `WasmIndicators` → `TypedArrayIndicators`.** A back-compat
+       shim re-exports from the old path with `@deprecated` JSDoc and will be
+       removed in v1.0. A real WASM+SIMD build is still on the wishlist.
+8. [ ] **WebGPU renderer (experimental).** Add an optional WebGPU candle renderer
+       behind `PerformanceMode`, with automatic WebGL2 → Canvas2D fallback.
+9. [x] **Benchmark CI.** [.github/workflows/benchmark.yml](.github/workflows/benchmark.yml)
+       runs `pnpm size` and the perf tests on every PR and posts the perf
+       output as a comment.
+10. [ ] **Backpressure SLA.** Document and enforce a max tick rate per pane; expose
     `TickAnimator` tuning knobs through `AstroneumChart` props.
-11. **React component + visual regression tests.** Pulled forward from v0.3.
-12. **Lazy locales.** Pulled forward from v0.4.
+11. [ ] **React component + visual regression tests.** Pulled forward from v0.3.
 
-### v0.6 — UX, Accessibility, Persistence
+### v0.6 — UX, Accessibility, Persistence (partial)
 
-13. **Chart accessibility.**
-    - Make the chart canvas focusable with keyboard navigation
-      (arrow keys = cursor, `[`/`]` = pan, `+`/`-` = zoom).
-    - Announce cursor OHLCV via an `aria-live` summary.
-    - Ship a high-contrast theme variant.
-14. **Drawing & layout persistence.** First-class
-    `serializeState()`/`loadState(json)` on `AstroneumHandle` covering
-    drawings, indicators, theme, locale, timezone. Add a `useChartStateSync`
-    React helper.
-15. **Mobile / touch polish.** Audit pinch-zoom, two-finger pan, long-press
+13. [x] **Chart accessibility (opt-in).**
+    - `accessible` prop makes the canvas focusable (`tabindex=0`, `role="img"`,
+      `aria-label`).
+    - Cursor OHLCV is announced through a polite `aria-live` region (throttled).
+    - High-contrast theme variant ships under `theme="high-contrast"`.
+    - Keyboard pan/zoom shortcuts are still tracked for v0.7.
+14. [x] **Drawing & layout persistence.** `serializeState()` and
+    `loadState(state)` on `AstroneumHandle` cover drawings, indicators, theme,
+    locale, timezone, symbol, period, and styles. A `useChartStateSync` React
+    helper is still tracked for v0.7.
+15. [ ] **Mobile / touch polish.** Audit pinch-zoom, two-finger pan, long-press
     context menu, and drawing handles on small screens.
 16. **Order entry hooks.** Optional `OrderManager` surface with horizontal
     price lines, drag-to-edit handles, and a pluggable broker interface

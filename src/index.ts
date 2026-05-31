@@ -21,7 +21,7 @@ import WatchlistManager from './chart/WatchlistManager'
 import PortfolioTracker from './chart/PortfolioTracker'
 import PerformanceMode from './chart/PerformanceMode'
 
-import { load } from './i18n'
+import { load, loadLocale, BUILTIN_LOCALES } from './i18n'
 import {
   formatPrice,
   formatVolume,
@@ -56,6 +56,7 @@ import {
   type DatafeedSubscribeCallback,
   type AstroneumOptions,
   type AstroneumHandle,
+  type SerializedChartState,
   type CandleData,
   type ChartPlugin,
   type ChartPluginContext
@@ -76,6 +77,8 @@ export {
   PortfolioTracker,
   PerformanceMode,
   load as loadLocales,
+  loadLocale,
+  BUILTIN_LOCALES,
   formatPrice,
   formatVolume,
   formatPercent,
@@ -110,7 +113,7 @@ export { RingBuffer } from './engine/common/RingBuffer'
 
 export type {
   Datafeed, SymbolInfo, Period, DatafeedSubscribeCallback, AstroneumOptions, AstroneumHandle, CandleData,
-  ChartPlugin, ChartPluginContext
+  ChartPlugin, ChartPluginContext, SerializedChartState
 }
 export type { Viewport, IndicatorPlugin, ChartEventMap, Price, Volume, Timestamp } from './types'
 // Note: CSS is shipped as a separate artifact (`astroneum/style.css`) built from
