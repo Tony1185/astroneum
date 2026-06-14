@@ -113,7 +113,8 @@ export function createCompareIndicator(
       const stepX = width / (output.length - 1)
 
       // Parse color
-      let r = 255, g = 109, b = 0, a = 0.9
+      let r = 255, g = 109, b = 0
+      const a = 0.9
       if (color.startsWith('#')) {
         const h = color.replace('#', '')
         r = parseInt(h.slice(0, 2), 16)

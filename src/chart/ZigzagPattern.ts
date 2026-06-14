@@ -19,7 +19,6 @@ export function zigzag(data: CandleData[], deviation = 5): number[] {
 
   let lastHigh = false
   let lastPivotIdx = -1
-  let lastPivotPrice = 0
 
   for (let i = deviation; i < n - deviation; i++) {
     const bar = data[i]
@@ -44,12 +43,10 @@ export function zigzag(data: CandleData[], deviation = 5): number[] {
       result[i] = high
       lastHigh = true
       lastPivotIdx = i
-      lastPivotPrice = high
     } else if (isLow && (lastPivotIdx === -1 || lastHigh)) {
       result[i] = low
       lastHigh = false
       lastPivotIdx = i
-      lastPivotPrice = low
     }
   }
 
@@ -98,6 +95,7 @@ export function detectSupportResistance(
     .map(c => ({
       price: c.price,
       count: c.count,
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- TS infers `string` without it
       type: (c.price > avgPrice ? 'resistance' : 'support') as 'support' | 'resistance',
     }))
     .sort((a, b) => a.price - b.price)

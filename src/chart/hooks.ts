@@ -60,8 +60,6 @@ export function useKeyboardShortcuts(widgetRef: React.RefObject<Nullable<Chart>>
   const latestCleanup = useRef<() => void>(() => { })
 
   useEffect(() => {
-    let mouseWheelTarget: HTMLElement | null = null
-
     const handleKeyDown = (keyboardEvent: KeyboardEvent): void => {
       const tag = (document.activeElement as HTMLElement)?.tagName?.toLowerCase()
       if (tag === 'input' || tag === 'textarea') return

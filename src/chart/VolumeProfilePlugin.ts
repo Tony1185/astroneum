@@ -1,5 +1,4 @@
-import type { CandleData, Chart, IndicatorPlugin, Viewport } from '@/types'
-import { registerIndicatorPlugin } from '@/plugin'
+import type { CandleData, IndicatorPlugin, Viewport } from '@/types'
 
 /**
  * Volume Profile indicator — horizontal histogram of volume at each price level.
@@ -29,14 +28,11 @@ function computeVolumeProfile(
   // Find visible price range
   let priceHigh = -Infinity
   let priceLow = Infinity
-  let totalVolume = 0
   for (const bar of data) {
     const high = bar.high
     const low = bar.low
-    const vol = bar.volume ?? 0
     if (high > priceHigh) priceHigh = high
     if (low < priceLow) priceLow = low
-    totalVolume += vol
   }
 
   const priceRange = priceHigh - priceLow
@@ -44,7 +40,6 @@ function computeVolumeProfile(
 
   const step = priceRange / rowsCount
   const buckets = new Array<number>(rowsCount).fill(0)
-  const prices = new Array<number>(rowsCount)
 
   // Assign volume to each price bucket
   for (const bar of data) {

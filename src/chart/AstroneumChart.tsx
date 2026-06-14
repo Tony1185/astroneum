@@ -308,8 +308,8 @@ const AstroneumChart = forwardRef<AstroneumHandle, AstroneumChartProps>((props, 
       const widget = widgetRef.current
       if (!widget) return () => { }
       // Store callback so we can unsubscribe later via subscription ID
-      widget.subscribeAction('onCrosshairChange', callback as (data?: unknown) => void)
-      return () => { widget.unsubscribeAction('onCrosshairChange', callback as (data?: unknown) => void) }
+      widget.subscribeAction('onCrosshairChange', callback)
+      return () => { widget.unsubscribeAction('onCrosshairChange', callback) }
     },
     setCrosshair: (data: unknown): void => {
       widgetRef.current?.executeAction('onCrosshairChange', data as never)
@@ -319,7 +319,7 @@ const AstroneumChart = forwardRef<AstroneumHandle, AstroneumChartProps>((props, 
       if (!widget) return
       const overlays = widget.getOverlays()
       for (const o of overlays) {
-        widget.overrideOverlay({ id: o.id, lock: locked } as never)
+        widget.overrideOverlay({ id: o.id, lock: locked })
       }
     },
   }), [])

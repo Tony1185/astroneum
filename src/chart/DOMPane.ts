@@ -39,7 +39,6 @@ function computeDOM(data: CandleData[], levels = 20): DOMLevel[] {
   if (priceRange <= 0) return []
 
   const step = priceRange / levels
-  const lastPrice = data[data.length - 1].close
 
   const result: DOMLevel[] = []
 
@@ -123,7 +122,6 @@ export const domPlugin: IndicatorPlugin<DOMLevel> = {
 
       const y = Math.round(height * (1 - yRatio))
 
-      const totalWidth = ((row.bidVolume + row.askVolume) / maxVol) * barMaxWidth
       const bidWidth = (row.bidVolume / maxVol) * barMaxWidth
       const askWidth = (row.askVolume / maxVol) * barMaxWidth
 

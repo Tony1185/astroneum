@@ -1,4 +1,4 @@
-import type { OverlayTemplate, Coordinate } from '@/types'
+import type { OverlayTemplate } from '@/types'
 
 const measure: OverlayTemplate = {
   name: 'measure',
@@ -16,8 +16,6 @@ const measure: OverlayTemplate = {
     const dx = Math.abs(c2.x - c1.x)
     const dy = Math.abs(c2.y - c1.y)
     const pixelDist = Math.sqrt(dx * dx + dy * dy)
-    const midX = (c1.x + c2.x) / 2
-    const midY = (c1.y + c2.y) / 2
     const labelX = c2.x > c1.x ? c2.x + 6 : c2.x - 80
 
     const figures: Array<{ type: string; attrs: unknown; ignoreEvent?: boolean }> = [

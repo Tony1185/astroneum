@@ -267,11 +267,11 @@ export class DrawingTemplates {
     const originalStyles = overlay?.styles
 
     // Apply preview
-    chart.overrideOverlay({ id: overlayId, styles: preset.styles } as never)
+    chart.overrideOverlay({ id: overlayId, styles: preset.styles })
 
     return () => {
       if (originalStyles !== undefined) {
-        chart.overrideOverlay({ id: overlayId, styles: originalStyles } as never)
+        chart.overrideOverlay({ id: overlayId, styles: originalStyles })
       }
     }
   }
@@ -292,7 +292,7 @@ export class DrawingTemplates {
         text: { color },
         point: { color },
       },
-    } as never)
+    })
   }
 }
 

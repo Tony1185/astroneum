@@ -1,4 +1,4 @@
-import type { CandleData, Period, SymbolInfo } from '@/types'
+import type { CandleData, Period } from '@/types'
 
 /**
  * Build a higher-timeframe bar array from lower-TF data using OHLCV resampling.

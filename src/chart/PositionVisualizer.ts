@@ -11,7 +11,7 @@
  */
 
 import type { Chart } from '@/engine'
-import type { Position, PositionSide } from './PortfolioTracker'
+import type { Position } from './PortfolioTracker'
 
 const POSITION_GROUP = '__position_lines__'
 

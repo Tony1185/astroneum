@@ -84,8 +84,6 @@ export class MultiPeriodLayout {
     })
     this._wrapperEl = wrapper
 
-    const paneHeight = `${100 / this._periods.length}%`
-
     for (let i = 0; i < this._periods.length; i++) {
       const period = this._periods[i]
       const cellEl = document.createElement('div')

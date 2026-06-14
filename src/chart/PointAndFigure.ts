@@ -193,9 +193,9 @@ export const pointAndFigurePlugin: IndicatorPlugin<number> = {
   },
 
   render2D(
-    ctx: CanvasRenderingContext2D,
-    output: number[],
-    viewport: Viewport
+    _ctx: CanvasRenderingContext2D,
+    _output: number[],
+    _viewport: Viewport
   ): void {
     // This render path is a stub — true P&F grid rendering with
     // X/O glyphs and 45° trend lines requires access to raw data.
