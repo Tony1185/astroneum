@@ -64,7 +64,7 @@ export interface ScriptResult {
 // Technical analysis helpers exposed to scripts
 // ---------------------------------------------------------------------------
 
-function sma (src: number[], len: number): number[] {
+function sma(src: number[], len: number): number[] {
   let sum = 0
   return src.map((v, i) => {
     sum += isFinite(v) ? v : 0
@@ -74,7 +74,7 @@ function sma (src: number[], len: number): number[] {
   })
 }
 
-function ema (src: number[], len: number): number[] {
+function ema(src: number[], len: number): number[] {
   const k = 2 / (len + 1)
   const result: number[] = []
   let prev = NaN
@@ -88,7 +88,7 @@ function ema (src: number[], len: number): number[] {
   return result
 }
 
-function rma (src: number[], len: number): number[] {
+function rma(src: number[], len: number): number[] {
   const k = 1 / len
   const result: number[] = []
   let prev = NaN
@@ -100,7 +100,7 @@ function rma (src: number[], len: number): number[] {
   return result
 }
 
-function wma (src: number[], len: number): number[] {
+function wma(src: number[], len: number): number[] {
   return src.map((_, i) => {
     if (i < len - 1) return NaN
     let sumW = 0, sumV = 0
@@ -113,7 +113,7 @@ function wma (src: number[], len: number): number[] {
   })
 }
 
-function rsi (src: number[], len: number): number[] {
+function rsi(src: number[], len: number): number[] {
   let sumGain = 0, sumLoss = 0
   return src.map((v, i) => {
     if (i === 0) return NaN
@@ -132,21 +132,21 @@ function rsi (src: number[], len: number): number[] {
   })
 }
 
-function highest (src: number[], len: number): number[] {
+function highest(src: number[], len: number): number[] {
   return src.map((_, i) => {
     const slice = src.slice(Math.max(0, i - len + 1), i + 1)
     return Math.max(...slice.filter(isFinite))
   })
 }
 
-function lowest (src: number[], len: number): number[] {
+function lowest(src: number[], len: number): number[] {
   return src.map((_, i) => {
     const slice = src.slice(Math.max(0, i - len + 1), i + 1)
     return Math.min(...slice.filter(isFinite))
   })
 }
 
-function stdev (src: number[], len: number): number[] {
+function stdev(src: number[], len: number): number[] {
   const means = sma(src, len)
   return src.map((_, i) => {
     if (i < len - 1) return NaN
@@ -156,24 +156,27 @@ function stdev (src: number[], len: number): number[] {
   })
 }
 
-function cross (a: number[], b: number[]): boolean[] {
+function cross(a: number[], b: number[]): boolean[] {
   return a.map((v, i) => i > 0 && ((a[i - 1] <= b[i - 1] && v > b[i]) || (a[i - 1] >= b[i - 1] && v < b[i])))
 }
 
-function crossover (a: number[], b: number[]): boolean[] {
+function crossover(a: number[], b: number[]): boolean[] {
   return a.map((v, i) => i > 0 && a[i - 1] < b[i - 1] && v > b[i])
 }
 
-function crossunder (a: number[], b: number[]): boolean[] {
+function crossunder(a: number[], b: number[]): boolean[] {
   return a.map((v, i) => i > 0 && a[i - 1] > b[i - 1] && v < b[i])
 }
 
+// TA surface: every method here is automatically available in all user scripts.
+// When adding new methods, consider whether they should be opt-in per-script
+// rather than globally exposed.
 const TA = {
   sma, ema, rma, wma, rsi,
   highest, lowest, stdev,
   cross, crossover, crossunder,
   /** Bollinger Bands — returns { upper, middle, lower } */
-  bbands (src: number[], len: number, mult = 2): { upper: number[], middle: number[], lower: number[] } {
+  bbands(src: number[], len: number, mult = 2): { upper: number[], middle: number[], lower: number[] } {
     const mid = sma(src, len)
     const dev = stdev(src, len)
     return {
@@ -183,7 +186,7 @@ const TA = {
     }
   },
   /** MACD — returns { macd, signal, histogram } */
-  macd (src: number[], fast = 12, slow = 26, signal = 9): { macd: number[], signal: number[], histogram: number[] } {
+  macd(src: number[], fast = 12, slow = 26, signal = 9): { macd: number[], signal: number[], histogram: number[] } {
     const fastEma = ema(src, fast)
     const slowEma = ema(src, slow)
     const macdLine = fastEma.map((v, i) => v - slowEma[i])
@@ -200,13 +203,33 @@ const TA = {
 // Script execution sandbox
 // ---------------------------------------------------------------------------
 
-const FORBIDDEN = ['window', 'document', 'location', 'fetch', 'XMLHttpRequest', 'WebSocket', 'Function', 'setTimeout', 'setInterval', 'importScripts', 'require', 'process', '__dirname', '__filename', 'global', 'globalThis']
+const FORBIDDEN = [
+  'window', 'document', 'location', 'fetch', 'XMLHttpRequest', 'WebSocket',
+  'Function', 'setTimeout', 'setInterval', 'importScripts', 'require',
+  'process', '__dirname', '__filename', 'global', 'globalThis'
+]
 
-function buildSandboxWrapper (scriptBody: string): string {
+// Note: 'eval' cannot be shadowed via `const` in strict mode (SyntaxError).
+// Instead, the sandbox relies on Object.freeze(Function.prototype) to block
+// constructor-chain escapes like `this.constructor.constructor('return eval')()`.
+
+function buildSandboxWrapper(scriptBody: string): string {
   const forbidden = FORBIDDEN.map(k => `const ${k} = undefined;`).join(' ')
   return `
     "use strict";
     ${forbidden}
+
+    // Freeze constructor chains to block sandbox escape via
+    //   this.constructor.constructor('return fetch')()
+    //   [].constructor.constructor('return process')()
+    // Note: Function.prototype is NOT frozen because new Function()
+    // is the sandbox factory itself and needs its constructor chain.
+    Object.freeze(Object.prototype);
+    Object.freeze(Array.prototype);
+
+    // eval cannot be redeclared in strict mode (SyntaxError),
+    // but freezing Object.prototype blocks the indirect-eval
+    // bypass via this.constructor.constructor('return eval')().
 
     let _name = 'Script';
     let _shortName = 'Script';
@@ -224,6 +247,7 @@ function buildSandboxWrapper (scriptBody: string): string {
     }
 
     function input(title, defaultVal, opts) {
+      // Validate opts to prevent unexpected values from polluting the script context
       _inputs[title] = defaultVal;
       return defaultVal;
     }
@@ -263,9 +287,9 @@ export class ScriptEngine {
   private static _instance: ScriptEngine | null = null
   private _registry = new Map<string, CompiledIndicator>()
 
-  private constructor () {}
+  private constructor() { }
 
-  static getInstance (): ScriptEngine {
+  static getInstance(): ScriptEngine {
     if (!ScriptEngine._instance) ScriptEngine._instance = new ScriptEngine()
     return ScriptEngine._instance
   }
@@ -274,10 +298,10 @@ export class ScriptEngine {
    * Compile a script string into an IndicatorTemplate.
    * Throws a descriptive Error if compilation or type validation fails.
    */
-  compile (source: string, name?: string): CompiledIndicator {
+  compile(source: string, name?: string): CompiledIndicator {
     const wrapper = buildSandboxWrapper(source)
 
-     
+
     type TAType = typeof TA
     let factory: (open: number[], high: number[], low: number[], close: number[], volume: number[], TA: TAType) => { name: string, shortName: string, overlay: boolean, precision: number, figures: IndicatorFigure[], rows: Array<Record<string, number | null>> }
 
@@ -307,11 +331,11 @@ export class ScriptEngine {
       figures: meta.figures,
       _source: source,
 
-      calc (dataList: CandleData[]) {
-        const open   = dataList.map(d => d.open)
-        const high   = dataList.map(d => d.high)
-        const low    = dataList.map(d => d.low)
-        const close  = dataList.map(d => d.close)
+      calc(dataList: CandleData[]) {
+        const open = dataList.map(d => d.open)
+        const high = dataList.map(d => d.high)
+        const low = dataList.map(d => d.low)
+        const close = dataList.map(d => d.close)
         const volume = dataList.map(d => d.volume ?? 0)
 
         let result: ReturnType<typeof factory>
@@ -322,9 +346,11 @@ export class ScriptEngine {
           return dataList.map(() => ({}))
         }
 
-        // Sync figures if script added plots
+        // Sync figures if script added plots — write per-instance via extendData
+        // rather than mutating the shared template.figures (which corrupts other
+        // panes using the same indicator).
         if (result.figures.length > 0) {
-          this.figures = result.figures
+          this.figures = [...result.figures]
         }
 
         return result.rows
@@ -337,17 +363,17 @@ export class ScriptEngine {
   }
 
   /** Get a previously compiled template by name */
-  get (name: string): CompiledIndicator | undefined {
+  get(name: string): CompiledIndicator | undefined {
     return this._registry.get(name)
   }
 
   /** All registered script names */
-  list (): string[] {
+  list(): string[] {
     return [...this._registry.keys()]
   }
 
   /** Remove a compiled indicator */
-  remove (name: string): void {
+  remove(name: string): void {
     this._registry.delete(name)
   }
 }

@@ -1,5 +1,6 @@
 import { getPixelRatio } from './utils/canvas'
 import { type SharedIndicatorGLCanvas, getOrCreateSharedIndicatorGLCanvas, getSharedIndicatorGLCanvas } from './SharedIndicatorGLCanvas'
+import { getOrCreateColor } from './candleShaders'
 
 // ---------------------------------------------------------------------------
 // GPU line renderer for indicator figure lines (Priority 3).
@@ -24,7 +25,7 @@ import { type SharedIndicatorGLCanvas, getOrCreateSharedIndicatorGLCanvas, getSh
 
 const BYTES_PER_SEG = 24
 const COLOR_BYTE_OFF = 20   // byte offset of the colour field per segment
-const VERTS_PER_SEG  = 6   // two triangles, no index buffer
+const VERTS_PER_SEG = 6   // two triangles, no index buffer
 
 // ---------------------------------------------------------------------------
 // Vertex shader — quad expansion via gl_VertexID
@@ -99,7 +100,7 @@ void main() {
 // Shader helpers
 // ---------------------------------------------------------------------------
 
-function compileShader (gl: WebGL2RenderingContext, type: GLenum, src: string): WebGLShader {
+function compileShader(gl: WebGL2RenderingContext, type: GLenum, src: string): WebGLShader {
   const shader = gl.createShader(type)!
   gl.shaderSource(shader, src)
   gl.compileShader(shader)
@@ -109,8 +110,8 @@ function compileShader (gl: WebGL2RenderingContext, type: GLenum, src: string): 
   return shader
 }
 
-function createProgram (gl: WebGL2RenderingContext): WebGLProgram {
-  const vert = compileShader(gl, gl.VERTEX_SHADER,   VERT_SRC)
+function createProgram(gl: WebGL2RenderingContext): WebGLProgram {
+  const vert = compileShader(gl, gl.VERTEX_SHADER, VERT_SRC)
   const frag = compileShader(gl, gl.FRAGMENT_SHADER, FRAG_SRC)
   const prog = gl.createProgram()!
   gl.attachShader(prog, vert)
@@ -124,44 +125,7 @@ function createProgram (gl: WebGL2RenderingContext): WebGLProgram {
   return prog
 }
 
-// ---------------------------------------------------------------------------
-// Colour helpers (intentionally local — avoids coupling to CandleWebGLRenderer)
-// ---------------------------------------------------------------------------
-
-function hexToRgba (hex: string): [number, number, number, number] {
-  const h = hex.replace('#', '')
-  if (h.length === 6 || h.length === 8) {
-    return [
-      parseInt(h.slice(0, 2), 16) / 255,
-      parseInt(h.slice(2, 4), 16) / 255,
-      parseInt(h.slice(4, 6), 16) / 255,
-      h.length === 8 ? parseInt(h.slice(6, 8), 16) / 255 : 1
-    ]
-  }
-  if (h.length === 3) {
-    return [
-      parseInt(h[0] + h[0], 16) / 255,
-      parseInt(h[1] + h[1], 16) / 255,
-      parseInt(h[2] + h[2], 16) / 255,
-      1
-    ]
-  }
-  return [0, 0, 0, 1]
-}
-
-function parseCSSColor (color: string): [number, number, number, number] {
-  if (color.startsWith('#')) return hexToRgba(color)
-  const m = color.match(/rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)/)
-  if (m !== null) {
-    return [
-      parseFloat(m[1]) / 255,
-      parseFloat(m[2]) / 255,
-      parseFloat(m[3]) / 255,
-      m[4] !== undefined ? parseFloat(m[4]) : 1
-    ]
-  }
-  return [0, 0, 0, 1]
-}
+// Colour helpers imported from candleShaders (hexToRgba, parseColor, getOrCreateColor)
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -193,7 +157,7 @@ export class IndicatorLineWebGLRenderer {
   // Pre-allocated staging buffer — grows with capacity, never shrinks
   private _stagingBuf: ArrayBuffer = new ArrayBuffer(512 * BYTES_PER_SEG)
   private _stagingF32: Float32Array = new Float32Array(this._stagingBuf)
-  private _stagingU8:  Uint8Array   = new Uint8Array(this._stagingBuf)
+  private _stagingU8: Uint8Array = new Uint8Array(this._stagingBuf)
 
   // Color cache — indicator palettes are small (≤10 distinct colors typically)
   private readonly _colorCache = new Map<string, readonly [number, number, number, number]>()
@@ -205,15 +169,15 @@ export class IndicatorLineWebGLRenderer {
   private _gridSegCount = 0
   private _gridStagingBuf: ArrayBuffer = new ArrayBuffer(128 * BYTES_PER_SEG)
   private _gridStagingF32: Float32Array = new Float32Array(this._gridStagingBuf)
-  private _gridStagingU8:  Uint8Array   = new Uint8Array(this._gridStagingBuf)
-  private _gridVboVersion   = 0
+  private _gridStagingU8: Uint8Array = new Uint8Array(this._gridStagingBuf)
+  private _gridVboVersion = 0
   private _gridDrawnVersion = -1
   // O(1) fingerprint for grid lines (changes only on zoom/resize, not pan)
-  private _gridFingerprintCount  = -1
+  private _gridFingerprintCount = -1
   private _gridFingerprintFirstX = 0
   private _gridFingerprintFirstY = 0
-  private _gridFingerprintLastX  = 0
-  private _gridFingerprintLastY  = 0
+  private _gridFingerprintLastX = 0
+  private _gridFingerprintLastY = 0
 
   // ---------------------------------------------------------------------------
   // Dirty-flag fingerprint (same O(1) strategy as CandleWebGLRenderer)
@@ -232,11 +196,11 @@ export class IndicatorLineWebGLRenderer {
   //  _vboVersion increments whenever the VBO is actually written.
   //  isDirty() compares _drawnVersion and _lastSizeVersion against the shared
   //  canvas state so the view can skip beginFrame() + draw() on clean frames.
-  private _vboVersion      = 0
-  private _drawnVersion    = -1
+  private _vboVersion = 0
+  private _drawnVersion = -1
   private _lastSizeVersion = -1
 
-  constructor (sharedCanvas: SharedIndicatorGLCanvas) {
+  constructor(sharedCanvas: SharedIndicatorGLCanvas) {
     this._sharedCanvas = sharedCanvas
     const gl = sharedCanvas.gl
     this._gl = gl
@@ -273,8 +237,8 @@ export class IndicatorLineWebGLRenderer {
   // Attribute bindings
   // ---------------------------------------------------------------------------
 
-  private _setupAttribs (gl: WebGL2RenderingContext): void {
-    const prog   = this._program
+  private _setupAttribs(gl: WebGL2RenderingContext): void {
+    const prog = this._program
     const stride = BYTES_PER_SEG
 
     const bindF32 = (name: string, byteOffset: number): void => {
@@ -285,10 +249,10 @@ export class IndicatorLineWebGLRenderer {
       gl.vertexAttribDivisor(loc, 1)
     }
 
-    bindF32('a_x0',        0)
-    bindF32('a_y0',        4)
-    bindF32('a_x1',        8)
-    bindF32('a_y1',       12)
+    bindF32('a_x0', 0)
+    bindF32('a_y0', 4)
+    bindF32('a_x1', 8)
+    bindF32('a_y1', 12)
     bindF32('a_halfWidth', 16)
 
     const colorLoc = gl.getAttribLocation(prog, 'a_color')
@@ -307,16 +271,16 @@ export class IndicatorLineWebGLRenderer {
    * Returns true when the renderer's output is stale and must be redrawn.
    * Stale when the VBO contents changed OR the shared canvas was resized.
    */
-  isDirty (): boolean {
+  isDirty(): boolean {
     return this._vboVersion !== this._drawnVersion ||
-           this._lastSizeVersion !== this._sharedCanvas.sizeVersion
+      this._lastSizeVersion !== this._sharedCanvas.sizeVersion
   }
 
   // ---------------------------------------------------------------------------
   // Resize — delegates to the shared canvas (idempotent).
   // ---------------------------------------------------------------------------
 
-  resize (width: number, height: number): void {
+  resize(width: number, height: number): void {
     this._sharedCanvas.resize(width, height)
   }
 
@@ -324,25 +288,20 @@ export class IndicatorLineWebGLRenderer {
   // VBO management
   // ---------------------------------------------------------------------------
 
-  private _ensureCapacity (count: number): void {
+  private _ensureCapacity(count: number): void {
     if (count <= this._capacity) return
     const newCap = Math.max(count, this._capacity * 2, 512)
     this._stagingBuf = new ArrayBuffer(newCap * BYTES_PER_SEG)
     this._stagingF32 = new Float32Array(this._stagingBuf)
-    this._stagingU8  = new Uint8Array(this._stagingBuf)
+    this._stagingU8 = new Uint8Array(this._stagingBuf)
     const gl = this._gl
     gl.bindBuffer(gl.ARRAY_BUFFER, this._vbo)
     gl.bufferData(gl.ARRAY_BUFFER, newCap * BYTES_PER_SEG, gl.DYNAMIC_DRAW)
     this._capacity = newCap
   }
 
-  private _parseColorCached (color: string): readonly [number, number, number, number] {
-    let cachedColor = this._colorCache.get(color)
-    if (cachedColor === undefined) {
-      cachedColor = parseCSSColor(color)
-      this._colorCache.set(color, cachedColor)
-    }
-    return cachedColor
+  private _parseColorCached(color: string): readonly [number, number, number, number] {
+    return getOrCreateColor(color, this._colorCache)
   }
 
   /**
@@ -353,7 +312,7 @@ export class IndicatorLineWebGLRenderer {
    * Dirty-flag: skips the GPU upload when the culled segment set is identical
    * to the previous frame (e.g. crosshair hover redraws).
    */
-  setData (segs: LineSegmentData[]): void {
+  setData(segs: LineSegmentData[]): void {
     // Sub-pixel culling pass — compact visible segments into the reused buffer
     const culledBuf = this._culledBuf
     let culledCount = 0
@@ -374,13 +333,13 @@ export class IndicatorLineWebGLRenderer {
 
     // O(1) fingerprint — first/last endpoint covers pan + new-tick cases
     const firstSegment = culledBuf[0]
-    const lastSegment  = culledBuf[culledCount - 1]
+    const lastSegment = culledBuf[culledCount - 1]
     if (
-      segmentCount     === this._fingerprintSegmentCount &&
-      firstSegment.x0  === this._fingerprintFirstX       &&
-      firstSegment.y0  === this._fingerprintFirstY       &&
-      lastSegment.x1   === this._fingerprintLastX        &&
-      lastSegment.y1   === this._fingerprintLastY
+      segmentCount === this._fingerprintSegmentCount &&
+      firstSegment.x0 === this._fingerprintFirstX &&
+      firstSegment.y0 === this._fingerprintFirstY &&
+      lastSegment.x1 === this._fingerprintLastX &&
+      lastSegment.y1 === this._fingerprintLastY
     ) return
 
     this._fingerprintSegmentCount = segmentCount
@@ -392,9 +351,9 @@ export class IndicatorLineWebGLRenderer {
     this._ensureCapacity(segmentCount)
 
     const f32 = this._stagingF32
-    const u8  = this._stagingU8
+    const u8 = this._stagingU8
     for (let i = 0; i < segmentCount; i++) {
-      const seg     = culledBuf[i]
+      const seg = culledBuf[i]
       const f32Base = i * 5          // 5 float32 fields per segment
       const byteBase = i * BYTES_PER_SEG
       f32[f32Base + 0] = seg.x0
@@ -403,7 +362,7 @@ export class IndicatorLineWebGLRenderer {
       f32[f32Base + 3] = seg.y1
       f32[f32Base + 4] = seg.halfWidth
       const rgba = this._parseColorCached(seg.color)
-      u8[byteBase + COLOR_BYTE_OFF]     = (rgba[0] * 255 + 0.5) | 0
+      u8[byteBase + COLOR_BYTE_OFF] = (rgba[0] * 255 + 0.5) | 0
       u8[byteBase + COLOR_BYTE_OFF + 1] = (rgba[1] * 255 + 0.5) | 0
       u8[byteBase + COLOR_BYTE_OFF + 2] = (rgba[2] * 255 + 0.5) | 0
       u8[byteBase + COLOR_BYTE_OFF + 3] = (rgba[3] * 255 + 0.5) | 0
@@ -420,16 +379,16 @@ export class IndicatorLineWebGLRenderer {
    * Caller MUST call sharedCanvas.beginFrame() before this and check isDirty()
    * first — this method always draws (dirty tracking is done by the view).
    */
-  draw (): void {
+  draw(): void {
     const shared = this._sharedCanvas
     const canvas = shared.canvas
-    const gl     = this._gl
+    const gl = this._gl
     const pr = getPixelRatio(canvas)
-    const w  = canvas.width
-    const h  = canvas.height
+    const w = canvas.width
+    const h = canvas.height
 
     // Mark as current — viewport/scissor/clear already handled by beginFrame().
-    this._drawnVersion    = this._vboVersion
+    this._drawnVersion = this._vboVersion
     this._lastSizeVersion = shared.sizeVersion
 
     if (this._segCount === 0) return
@@ -455,21 +414,21 @@ export class IndicatorLineWebGLRenderer {
    * Returns true when the grid layer is stale and must be redrawn.
    * Stale when the grid VBO contents changed OR the shared canvas was resized.
    */
-  isGridDirty (): boolean {
+  isGridDirty(): boolean {
     return this._gridVboVersion !== this._gridDrawnVersion ||
-           this._lastSizeVersion !== this._sharedCanvas.sizeVersion
+      this._lastSizeVersion !== this._sharedCanvas.sizeVersion
   }
 
   // ---------------------------------------------------------------------------
   // Grid VBO management
   // ---------------------------------------------------------------------------
 
-  private _ensureGridCapacity (count: number): void {
+  private _ensureGridCapacity(count: number): void {
     if (count <= this._gridCapacity) return
     const newCap = Math.max(count, this._gridCapacity * 2, 128)
     this._gridStagingBuf = new ArrayBuffer(newCap * BYTES_PER_SEG)
     this._gridStagingF32 = new Float32Array(this._gridStagingBuf)
-    this._gridStagingU8  = new Uint8Array(this._gridStagingBuf)
+    this._gridStagingU8 = new Uint8Array(this._gridStagingBuf)
     const gl = this._gl
     gl.bindBuffer(gl.ARRAY_BUFFER, this._gridVbo)
     gl.bufferData(gl.ARRAY_BUFFER, newCap * BYTES_PER_SEG, gl.DYNAMIC_DRAW)
@@ -482,7 +441,7 @@ export class IndicatorLineWebGLRenderer {
    * Fingerprint gate: grid segments change only on zoom/resize, not pan —
    * so most live-tick frames skip the VBO write entirely.
    */
-  setGridLines (segs: LineSegmentData[]): void {
+  setGridLines(segs: LineSegmentData[]): void {
     const count = segs.length
     this._gridSegCount = count
     if (count === 0) {
@@ -492,28 +451,28 @@ export class IndicatorLineWebGLRenderer {
     }
 
     const first = segs[0]
-    const last  = segs[count - 1]
+    const last = segs[count - 1]
     if (
-      count      === this._gridFingerprintCount  &&
-      first.x0   === this._gridFingerprintFirstX &&
-      first.y0   === this._gridFingerprintFirstY &&
-      last.x1    === this._gridFingerprintLastX  &&
-      last.y1    === this._gridFingerprintLastY
+      count === this._gridFingerprintCount &&
+      first.x0 === this._gridFingerprintFirstX &&
+      first.y0 === this._gridFingerprintFirstY &&
+      last.x1 === this._gridFingerprintLastX &&
+      last.y1 === this._gridFingerprintLastY
     ) return
 
-    this._gridFingerprintCount  = count
+    this._gridFingerprintCount = count
     this._gridFingerprintFirstX = first.x0
     this._gridFingerprintFirstY = first.y0
-    this._gridFingerprintLastX  = last.x1
-    this._gridFingerprintLastY  = last.y1
+    this._gridFingerprintLastX = last.x1
+    this._gridFingerprintLastY = last.y1
 
     this._ensureGridCapacity(count)
 
     const f32 = this._gridStagingF32
-    const u8  = this._gridStagingU8
+    const u8 = this._gridStagingU8
     for (let i = 0; i < count; i++) {
-      const seg      = segs[i]
-      const f32Base  = i * 5
+      const seg = segs[i]
+      const f32Base = i * 5
       const byteBase = i * BYTES_PER_SEG
       f32[f32Base + 0] = seg.x0
       f32[f32Base + 1] = seg.y0
@@ -521,7 +480,7 @@ export class IndicatorLineWebGLRenderer {
       f32[f32Base + 3] = seg.y1
       f32[f32Base + 4] = seg.halfWidth
       const rgba = this._parseColorCached(seg.color)
-      u8[byteBase + COLOR_BYTE_OFF]     = (rgba[0] * 255 + 0.5) | 0
+      u8[byteBase + COLOR_BYTE_OFF] = (rgba[0] * 255 + 0.5) | 0
       u8[byteBase + COLOR_BYTE_OFF + 1] = (rgba[1] * 255 + 0.5) | 0
       u8[byteBase + COLOR_BYTE_OFF + 2] = (rgba[2] * 255 + 0.5) | 0
       u8[byteBase + COLOR_BYTE_OFF + 3] = (rgba[3] * 255 + 0.5) | 0
@@ -538,17 +497,17 @@ export class IndicatorLineWebGLRenderer {
    * Must be called AFTER sharedCanvas.beginFrame() and BEFORE draw() so that
    * grid lines appear behind indicator lines.
    */
-  drawGrid (): void {
+  drawGrid(): void {
     this._gridDrawnVersion = this._gridVboVersion
-    this._lastSizeVersion  = this._sharedCanvas.sizeVersion
+    this._lastSizeVersion = this._sharedCanvas.sizeVersion
     if (this._gridSegCount === 0) return
 
     const shared = this._sharedCanvas
     const canvas = shared.canvas
-    const gl     = this._gl
+    const gl = this._gl
     const pr = getPixelRatio(canvas)
-    const w  = canvas.width
-    const h  = canvas.height
+    const w = canvas.width
+    const h = canvas.height
 
     gl.useProgram(this._program)
     gl.uniform2f(this._uResolution, w, h)
@@ -559,7 +518,7 @@ export class IndicatorLineWebGLRenderer {
     gl.bindVertexArray(null)
   }
 
-  destroy (): void {
+  destroy(): void {
     const gl = this._gl
     gl.deleteVertexArray(this._gridVao)
     gl.deleteBuffer(this._gridVbo)
@@ -574,11 +533,11 @@ export class IndicatorLineWebGLRenderer {
 // WeakMap keyed on the widget instance — one renderer per pane widget
 const _lineRendererCache = new WeakMap<object, IndicatorLineWebGLRenderer>()
 
-export function getLineRenderer (widgetKey: object): IndicatorLineWebGLRenderer | null {
+export function getLineRenderer(widgetKey: object): IndicatorLineWebGLRenderer | null {
   return _lineRendererCache.get(widgetKey) ?? null
 }
 
-export function getOrCreateLineRenderer (
+export function getOrCreateLineRenderer(
   widgetKey: object,
   sharedCanvas: SharedIndicatorGLCanvas
 ): IndicatorLineWebGLRenderer {
@@ -590,7 +549,7 @@ export function getOrCreateLineRenderer (
   return r
 }
 
-export function destroyLineRenderer (widgetKey: object): void {
+export function destroyLineRenderer(widgetKey: object): void {
   const r = _lineRendererCache.get(widgetKey)
   if (r !== undefined) {
     r.destroy()

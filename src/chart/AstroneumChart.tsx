@@ -20,6 +20,8 @@ import {
 } from '@/widget'
 
 import DrawingSnapper from './DrawingSnapper'
+import { heikinAshi } from './PerformanceMode'
+import { transformCandles } from './PriceScaleTransform'
 import { mountChartPlugins } from '@/plugin'
 
 import { translateTimezone } from '@/widget/timezone-modal/data'
@@ -33,11 +35,11 @@ import { useUIStore, EMPTY_INDICATOR_SETTING, type LineStyleEntry } from '@/stor
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-function getSystemTheme (): 'dark' | 'light' {
+function getSystemTheme(): 'dark' | 'light' {
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
-function createLogoNode (): Node {
+function createLogoNode(): Node {
   const div = document.createElement('div')
   div.innerHTML = logoSvgRaw
   const svg = div.firstElementChild as SVGElement
@@ -71,7 +73,7 @@ interface IndicatorTooltipFeatureClickData {
 
 export type AstroneumChartProps = AstroneumOptions
 
-function makeTooltipFeatures (color: string): TooltipFeatureStyle[] {
+function makeTooltipFeatures(color: string): TooltipFeatureStyle[] {
   const base: Omit<TooltipFeatureStyle, 'id' | 'marginLeft' | 'content'> = {
     position: 'middle',
     marginTop: 3,
@@ -101,42 +103,49 @@ function makeTooltipFeatures (color: string): TooltipFeatureStyle[] {
 }
 
 const TOOLTIP_FEATURES_LIGHT = makeTooltipFeatures('#76808F')
-const TOOLTIP_FEATURES_DARK  = makeTooltipFeatures('#929AA5')
+const TOOLTIP_FEATURES_DARK = makeTooltipFeatures('#929AA5')
+
+const TOOLTIP_STYLES_LIGHT = { indicator: { tooltip: { features: TOOLTIP_FEATURES_LIGHT } } }
+const TOOLTIP_STYLES_DARK = { indicator: { tooltip: { features: TOOLTIP_FEATURES_DARK } } }
 
 const MS_PER: Partial<Record<Period['timespan'], number>> = {
   minute: 60_000,
-  hour:   3_600_000,
-  day:    86_400_000
+  hour: 3_600_000,
+  day: 86_400_000
 } as const
 
-function adjustFromTo (period: Period, toTimestamp: number, count: number): [from: number, to: number] {
+function adjustFromTo(period: Period, toTimestamp: number, count: number): [from: number, to: number] {
   const unit = MS_PER[period.timespan]
   if (unit) {
     const to = toTimestamp - (toTimestamp % unit)
     return [to - count * period.multiplier * unit, to]
   }
   if (period.timespan === 'week') {
+    // Pure integer week alignment — epoch 1970-01-01 was a Thursday.
+    // Shift by 3 days so Monday=0, then floor-align to week start.
     const dayMs = 86_400_000
-    const toDate = new Date(toTimestamp)
-    const weekDayOffset = toDate.getUTCDay() === 0 ? 6 : toDate.getUTCDay() - 1
-    const to = Date.UTC(toDate.getUTCFullYear(), toDate.getUTCMonth(), toDate.getUTCDate() - weekDayOffset)
-    return [to - count * period.multiplier * 7 * dayMs, to]
+    const weekMs = 7 * dayMs
+    const mondayEpoch = 3 * dayMs  // Days from Unix epoch to first Monday
+    const alignedMs = toTimestamp + mondayEpoch
+    const to = alignedMs - (alignedMs % weekMs) - mondayEpoch
+    return [to - count * period.multiplier * weekMs, to]
   }
   if (period.timespan === 'month') {
-    const toDate = new Date(toTimestamp)
-    const to = Date.UTC(toDate.getUTCFullYear(), toDate.getUTCMonth(), 1)
-    const fromDate = new Date(to)
-    fromDate.setUTCMonth(fromDate.getUTCMonth() - count * period.multiplier)
-    return [Date.UTC(fromDate.getUTCFullYear(), fromDate.getUTCMonth(), 1), to]
+    // Use Date.UTC directly — avoids intermediate Date objects.
+    const d = new Date(toTimestamp)
+    const to = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)
+    const months = d.getUTCFullYear() * 12 + d.getUTCMonth() - count * period.multiplier
+    const from = Date.UTC(Math.floor(months / 12), months % 12, 1)
+    return [from, to]
   }
-  const toDate = new Date(toTimestamp)
-  const to = Date.UTC(toDate.getUTCFullYear(), 0, 1)
-  const fromDate = new Date(to)
-  fromDate.setUTCFullYear(fromDate.getUTCFullYear() - count * period.multiplier)
-  return [Date.UTC(fromDate.getUTCFullYear(), 0, 1), to]
+  // year
+  const d = new Date(toTimestamp)
+  const to = Date.UTC(d.getUTCFullYear(), 0, 1)
+  const from = Date.UTC(d.getUTCFullYear() - count * period.multiplier, 0, 1)
+  return [from, to]
 }
 
-function createIndicator (widget: Nullable<Chart>, indicator: IndicatorDef, isStack?: boolean, paneOptions?: PaneOptions): Nullable<string> {
+function createIndicator(widget: Nullable<Chart>, indicator: IndicatorDef, isStack?: boolean, paneOptions?: PaneOptions): Nullable<string> {
   return widget?.createIndicator({
     name: indicator.name,
     calcParams: indicator.calcParams,
@@ -264,8 +273,8 @@ const AstroneumChart = forwardRef<AstroneumHandle, AstroneumChartProps>((props, 
         timezone: chart.timezone().key,
         symbol: chart.symbol(),
         period: chart.period(),
-        styles: deepClone(chart.styles() ?? {}),
-        mainIndicators: deepClone(indicators.mainIndicators()),
+        styles: structuredClone(chart.styles() ?? {}),
+        mainIndicators: indicators.mainIndicators().map(i => ({ ...i })),
         subIndicators: Object.keys(indicators.subIndicators()),
         overlays,
       }
@@ -293,6 +302,24 @@ const AstroneumChart = forwardRef<AstroneumHandle, AstroneumChartProps>((props, 
           lock: o.lock,
           visible: o.visible,
         })
+      }
+    },
+    onCrosshairMove: (callback: (data: unknown) => void): () => void => {
+      const widget = widgetRef.current
+      if (!widget) return () => { }
+      // Store callback so we can unsubscribe later via subscription ID
+      widget.subscribeAction('onCrosshairChange', callback as (data?: unknown) => void)
+      return () => { widget.unsubscribeAction('onCrosshairChange', callback as (data?: unknown) => void) }
+    },
+    setCrosshair: (data: unknown): void => {
+      widgetRef.current?.executeAction('onCrosshairChange', data as never)
+    },
+    lockAllDrawings: (locked: boolean): void => {
+      const widget = widgetRef.current
+      if (!widget) return
+      const overlays = widget.getOverlays()
+      for (const o of overlays) {
+        widget.overrideOverlay({ id: o.id, lock: locked } as never)
       }
     },
   }), [])
@@ -379,12 +406,12 @@ const AstroneumChart = forwardRef<AstroneumHandle, AstroneumChartProps>((props, 
       createIndicator(widget, indicator, true, { id: 'candle_pane' })
     })
     const subIndicatorMap: Record<string, string> = {}
-    ;(props.subIndicators ?? ['VOL']).forEach(indicator => {
-      const paneId = createIndicator(widget, { name: indicator }, true)
-      if (paneId) {
-        subIndicatorMap[indicator] = paneId
-      }
-    })
+      ; (props.subIndicators ?? ['VOL']).forEach(indicator => {
+        const paneId = createIndicator(widget, { name: indicator }, true)
+        if (paneId) {
+          subIndicatorMap[indicator] = paneId
+        }
+      })
     indicators.setSubIndicators(subIndicatorMap)
 
     const dataLoader: DataLoader = {
@@ -393,12 +420,16 @@ const AstroneumChart = forwardRef<AstroneumHandle, AstroneumChartProps>((props, 
         try {
           if (type === 'init') {
             const [from, to] = adjustFromTo(per, Date.now(), 500)
-            const dataList = await props.datafeed.getHistoryData(sym, per, from, to)
+            let dataList = await props.datafeed.getHistoryData(sym, per, from, to)
+            if (props.barStyle === 'heikin_ashi') dataList = heikinAshi(dataList)
+            if (props.priceScale && props.priceScale !== 'linear') dataList = transformCandles(dataList, props.priceScale)
             callback(dataList, dataList.length > 0)
           } else if (type === 'forward') {
             const [to] = adjustFromTo(per, timestamp!, 1)
             const [from] = adjustFromTo(per, to, 500)
-            const dataList = await props.datafeed.getHistoryData(sym, per, from, to)
+            let dataList = await props.datafeed.getHistoryData(sym, per, from, to)
+            if (props.barStyle === 'heikin_ashi') dataList = heikinAshi(dataList)
+            if (props.priceScale && props.priceScale !== 'linear') dataList = transformCandles(dataList, props.priceScale)
             callback(dataList, dataList.length > 0)
           }
         } finally {
@@ -420,6 +451,8 @@ const AstroneumChart = forwardRef<AstroneumHandle, AstroneumChartProps>((props, 
     // queues; expanded panes that don't carry candle data emit no update.
     if (props.accessible) {
       let lastAnnounce = 0
+      // Reusable buffer to avoid per-move template-string allocation
+      const buf: string[] = []
       widget?.subscribeAction('onCrosshairChange', (data: unknown) => {
         const node = ariaLiveRef.current
         if (!node) return
@@ -432,14 +465,13 @@ const AstroneumChart = forwardRef<AstroneumHandle, AstroneumChartProps>((props, 
           node.textContent = ''
           return
         }
-        const sym = chart.symbol().ticker
-        const p = chart.period().text
         const fmt = (v?: number): string => v === undefined ? '—' : String(v)
-        node.textContent =
-          `${sym} ${p}, ` +
-          `open ${fmt(candle.open)}, high ${fmt(candle.high)}, ` +
-          `low ${fmt(candle.low)}, close ${fmt(candle.close)}, ` +
-          `volume ${fmt(candle.volume)}`
+        buf.length = 0
+        buf.push(chart.symbol().ticker, ' ', chart.period().text, ', ',
+          'open ', fmt(candle.open), ', high ', fmt(candle.high), ', ',
+          'low ', fmt(candle.low), ', close ', fmt(candle.close), ', ',
+          'volume ', fmt(candle.volume))
+        node.textContent = buf.join('')
       })
     }
 
@@ -510,12 +542,13 @@ const AstroneumChart = forwardRef<AstroneumHandle, AstroneumChartProps>((props, 
   const timezone = chart.timezone()
   const styles = chart.styles()
 
+  // Batch all engine property syncs into one effect so multiple prop changes
+  // (e.g. symbol + period + theme during loadState) trigger a single render pass.
   useEffect(() => {
     const widget = widgetRef.current
-    if (!widget) {
-      return
-    }
+    if (!widget) return
 
+    // Price unit label
     const priceUnitDom = priceUnitDomRef.current
     if (priceUnitDom) {
       if (symbol?.priceCurrency) {
@@ -531,39 +564,16 @@ const AstroneumChart = forwardRef<AstroneumHandle, AstroneumChartProps>((props, 
       pricePrecision: symbol.pricePrecision ?? 2,
       volumePrecision: symbol.volumePrecision ?? 0
     })
-  }, [symbol])
-
-  useEffect(() => {
-    widgetRef.current?.setPeriod(period)
-  }, [period])
-
-  useEffect(() => {
-    const widget = widgetRef.current
-    if (!widget) {
-      return
-    }
-
+    widget.setPeriod(period)
     widget.setStyles(theme)
-    widget.setStyles({ indicator: { tooltip: { features: theme === 'dark' ? TOOLTIP_FEATURES_DARK : TOOLTIP_FEATURES_LIGHT } } })
-  }, [theme])
-
-  useEffect(() => {
-    widgetRef.current?.setLocale(locale)
-  }, [locale])
-
-  useEffect(() => {
-    widgetRef.current?.setTimezone(timezone.key)
-  }, [timezone])
-
-  useEffect(() => {
-    const widget = widgetRef.current
-    if (!widget || !styles) {
-      return
+    widget.setStyles(theme === 'dark' ? TOOLTIP_STYLES_DARK : TOOLTIP_STYLES_LIGHT)
+    widget.setLocale(locale)
+    widget.setTimezone(timezone.key)
+    if (styles) {
+      widget.setStyles(styles)
+      chart.setWidgetDefaultStyles(deepClone(widget.getStyles()))
     }
-
-    widget.setStyles(styles)
-    chart.setWidgetDefaultStyles(deepClone(widget.getStyles()))
-  }, [styles])
+  }, [symbol, period, theme, locale, timezone, styles])
 
   return (
     <div
@@ -585,13 +595,13 @@ const AstroneumChart = forwardRef<AstroneumHandle, AstroneumChartProps>((props, 
           aria-atomic='true'
         />
       )}
-      <i className="icon-close astroneum-load-icon"/>
+      <i className="icon-close astroneum-load-icon" />
       {ui.symbolSearchModalVisible() && (
         <SymbolSearchModal
           locale={locale}
           searchSymbols={props.datafeed.searchSymbols.bind(props.datafeed)}
           onSymbolSelected={s => { chart.setSymbol(s) }}
-          onClose={() => { ui.setSymbolSearchModalVisible(false) }}/>
+          onClose={() => { ui.setSymbolSearchModalVisible(false) }} />
       )}
       {ui.indicatorModalVisible() && (
         <IndicatorModal
@@ -624,7 +634,7 @@ const AstroneumChart = forwardRef<AstroneumHandle, AstroneumChartProps>((props, 
               }
             }
             indicators.setSubIndicators(newSub)
-          }}/>
+          }} />
       )}
       {ui.timezoneModalVisible() && (
         <TimezoneModal
@@ -679,7 +689,7 @@ const AstroneumChart = forwardRef<AstroneumHandle, AstroneumChartProps>((props, 
         <AlertModal
           locale={locale}
           symbol={chart.symbol().ticker}
-          onClose={() => { setAlertModalVisible(false) }}/>
+          onClose={() => { setAlertModalVisible(false) }} />
       )}
       {scriptEditorModalVisible && (
         <ScriptEditorModal
@@ -687,7 +697,7 @@ const AstroneumChart = forwardRef<AstroneumHandle, AstroneumChartProps>((props, 
           onCompiled={indicatorName => {
             createIndicator(widgetRef.current, { name: indicatorName }, false)
           }}
-          onClose={() => { setScriptEditorModalVisible(false) }}/>
+          onClose={() => { setScriptEditorModalVisible(false) }} />
       )}
       <PeriodBar
         locale={locale}
@@ -719,7 +729,7 @@ const AstroneumChart = forwardRef<AstroneumHandle, AstroneumChartProps>((props, 
         }}
       />
       <div className="astroneum-content">
-        {ui.loadingVisible() && <Loading/>}
+        {ui.loadingVisible() && <Loading />}
         {ui.drawingBarVisible() && (
           <DrawingBar
             locale={locale}
@@ -739,14 +749,14 @@ const AstroneumChart = forwardRef<AstroneumHandle, AstroneumChartProps>((props, 
               } else {
                 snapperRef.current.disable()
               }
-            }}/>
+            }} />
         )}
         <div
           ref={(el) => {
             widgetContainerRef.current = el
           }}
           className='astroneum-widget'
-          data-drawing-bar-visible={ui.drawingBarVisible()}/>
+          data-drawing-bar-visible={ui.drawingBarVisible()} />
         <div className='astroneum-clock' aria-hidden='true'>{clockTime}</div>
       </div>
     </div>

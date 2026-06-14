@@ -153,11 +153,11 @@ export class DrawingTemplates {
   private static _instance: DrawingTemplates | null = null
   private _custom: OverlayStylePreset[] = []
 
-  private constructor () {
+  private constructor() {
     this._loadCustom()
   }
 
-  static getInstance (): DrawingTemplates {
+  static getInstance(): DrawingTemplates {
     if (!DrawingTemplates._instance) {
       DrawingTemplates._instance = new DrawingTemplates()
     }
@@ -168,7 +168,7 @@ export class DrawingTemplates {
   // Private helpers
   // -------------------------------------------------------------------------
 
-  private _loadCustom (): void {
+  private _loadCustom(): void {
     try {
       const raw = localStorage.getItem(STORAGE_KEY)
       if (raw) {
@@ -179,7 +179,7 @@ export class DrawingTemplates {
     }
   }
 
-  private _saveCustom (): void {
+  private _saveCustom(): void {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this._custom))
     } catch {
@@ -192,22 +192,22 @@ export class DrawingTemplates {
   // -------------------------------------------------------------------------
 
   /** Return all presets (built-in first, then custom). */
-  getAll (): OverlayStylePreset[] {
+  getAll(): OverlayStylePreset[] {
     return [...BUILT_IN_PRESETS, ...this._custom]
   }
 
   /** Return built-in presets only. */
-  getBuiltIn (): OverlayStylePreset[] {
+  getBuiltIn(): OverlayStylePreset[] {
     return [...BUILT_IN_PRESETS]
   }
 
   /** Return user-saved custom presets. */
-  getCustom (): OverlayStylePreset[] {
+  getCustom(): OverlayStylePreset[] {
     return [...this._custom]
   }
 
   /** Find a preset by id (searches built-ins then custom). */
-  getPreset (id: string): OverlayStylePreset | undefined {
+  getPreset(id: string): OverlayStylePreset | undefined {
     return this.getAll().find(p => p.id === id)
   }
 
@@ -215,7 +215,7 @@ export class DrawingTemplates {
    * Save a new custom preset (or overwrite an existing custom one with the same id).
    * Note: built-in preset ids cannot be overwritten.
    */
-  saveCustomPreset (preset: OverlayStylePreset): void {
+  saveCustomPreset(preset: OverlayStylePreset): void {
     if (BUILT_IN_PRESETS.some(p => p.id === preset.id)) {
       throw new Error(`Cannot overwrite built-in preset "${preset.id}"`)
     }
@@ -229,7 +229,7 @@ export class DrawingTemplates {
   }
 
   /** Delete a custom preset by id. Built-in presets cannot be deleted. */
-  deleteCustomPreset (id: string): boolean {
+  deleteCustomPreset(id: string): boolean {
     if (BUILT_IN_PRESETS.some(p => p.id === id)) {
       return false
     }
@@ -246,8 +246,53 @@ export class DrawingTemplates {
    * Apply a preset to an engine overlay via overrideOverlay.
    * Returns the styles object ready to pass to `chart.overrideOverlay({ groupId, styles })`.
    */
-  toOverlayStyles (presetId: string): DrawingStyleTemplate | undefined {
+  toOverlayStyles(presetId: string): DrawingStyleTemplate | undefined {
     return this.getPreset(presetId)?.styles
+  }
+
+  /**
+   * Preview a preset on an overlay without saving it. The styles are applied
+   * temporarily via overrideOverlay. Combine with the revert function to
+   * restore the original styles after preview ends.
+   *
+   * @returns A revert function that restores the original styles.
+   */
+  preview(presetId: string, overlayId: string, chart: { overrideOverlay: (o: { id?: string; styles?: unknown }) => void; getOverlays: () => Array<{ id: string; styles: unknown }> }): (() => void) | null {
+    const preset = this.getPreset(presetId)
+    if (!preset) return null
+
+    // Capture original styles for revert
+    const overlays = chart.getOverlays()
+    const overlay = overlays.find(o => o.id === overlayId)
+    const originalStyles = overlay?.styles
+
+    // Apply preview
+    chart.overrideOverlay({ id: overlayId, styles: preset.styles } as never)
+
+    return () => {
+      if (originalStyles !== undefined) {
+        chart.overrideOverlay({ id: overlayId, styles: originalStyles } as never)
+      }
+    }
+  }
+
+  /**
+   * Apply a specific color to an individual drawing overlay by ID.
+   * Changes are persisted with the overlay (stored in overlay styles).
+   */
+  static applyColor(
+    chart: { overrideOverlay: (o: { id?: string; styles?: unknown }) => void },
+    overlayId: string,
+    color: string
+  ): void {
+    chart.overrideOverlay({
+      id: overlayId,
+      styles: {
+        line: { color },
+        text: { color },
+        point: { color },
+      },
+    } as never)
   }
 }
 

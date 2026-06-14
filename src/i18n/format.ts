@@ -25,7 +25,7 @@ export interface FormatPriceOptions {
  * formatPrice(1234567, 'en-US', { compact: true })     // "1.2M"
  * formatPrice(1234.5, 'en-US', { currency: 'USD' })    // "$1,234.50"
  */
-export function formatPrice (value: number, locale: string, options: FormatPriceOptions = {}): string {
+export function formatPrice(value: number, locale: string, options: FormatPriceOptions = {}): string {
   const { precision = 2, compact = false, currency } = options
 
   if (!isFinite(value)) return String(value)
@@ -59,7 +59,7 @@ export function formatPrice (value: number, locale: string, options: FormatPrice
  * formatVolume(1234567, 'en-US') // "1.2M"
  * formatVolume(54321,   'zh-CN') // "5.4万"
  */
-export function formatVolume (value: number, locale: string): string {
+export function formatVolume(value: number, locale: string): string {
   if (!isFinite(value)) return String(value)
   return new Intl.NumberFormat(locale, {
     notation: 'compact',
@@ -74,7 +74,7 @@ export function formatVolume (value: number, locale: string): string {
  * formatPercent(0.0523, 'en-US') // "5.23%"
  * formatPercent(-0.012, 'fr-FR') // "-1,20 %"
  */
-export function formatPercent (value: number, locale: string, precision = 2): string {
+export function formatPercent(value: number, locale: string, precision = 2): string {
   if (!isFinite(value)) return String(value)
   return new Intl.NumberFormat(locale, {
     style: 'percent',
@@ -97,7 +97,7 @@ export type TimeFormatStyle = 'short' | 'medium'
  * @param locale     BCP-47 locale string, e.g. "en-US"
  * @param style      Intl DateTimeFormat date style
  */
-export function formatDate (timestamp: number, locale: string, style: DateFormatStyle = 'medium'): string {
+export function formatDate(timestamp: number, locale: string, style: DateFormatStyle = 'medium'): string {
   const ms = timestamp > 1e10 ? timestamp : timestamp * 1000
   return new Intl.DateTimeFormat(locale, { dateStyle: style }).format(new Date(ms))
 }
@@ -105,7 +105,7 @@ export function formatDate (timestamp: number, locale: string, style: DateFormat
 /**
  * Format a UNIX timestamp as a locale-aware time string.
  */
-export function formatTime (timestamp: number, locale: string, style: TimeFormatStyle = 'short'): string {
+export function formatTime(timestamp: number, locale: string, style: TimeFormatStyle = 'short'): string {
   const ms = timestamp > 1e10 ? timestamp : timestamp * 1000
   return new Intl.DateTimeFormat(locale, { timeStyle: style }).format(new Date(ms))
 }
@@ -113,7 +113,7 @@ export function formatTime (timestamp: number, locale: string, style: TimeFormat
 /**
  * Format a UNIX timestamp as a combined date+time string.
  */
-export function formatDateTime (
+export function formatDateTime(
   timestamp: number,
   locale: string,
   dateStyle: DateFormatStyle = 'medium',
@@ -131,12 +131,14 @@ export function formatDateTime (
  * formatDuration(60_000,    'en-US') // "1 minute"
  * formatDuration(3_600_000, 'de-DE') // "1 Stunde"
  */
-export function formatDuration (ms: number, locale: string): string {
+export function formatDuration(ms: number, locale: string): string {
+  // Positive ms → future ("in 5 minutes"); negative ms → past ("5 minutes ago").
+  // Negative values are passed through to rtf.format() which handles the sign.
   const abs = Math.abs(ms)
   const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto', style: 'long' })
 
-  if (abs < 60_000)     return rtf.format(Math.round(ms / 1_000), 'second')
-  if (abs < 3_600_000)  return rtf.format(Math.round(ms / 60_000), 'minute')
+  if (abs < 60_000) return rtf.format(Math.round(ms / 1_000), 'second')
+  if (abs < 3_600_000) return rtf.format(Math.round(ms / 60_000), 'minute')
   if (abs < 86_400_000) return rtf.format(Math.round(ms / 3_600_000), 'hour')
   if (abs < 2_592_000_000) return rtf.format(Math.round(ms / 86_400_000), 'day')
   return rtf.format(Math.round(ms / 2_592_000_000), 'month')
@@ -165,7 +167,7 @@ const TIMESPAN_LABELS: Record<string, Record<string, string>> = {
  * formatPeriod({ multiplier: 4, timespan: 'hour' },   'zh-CN')  // "4时"
  * formatPeriod({ multiplier: 1, timespan: 'day' },    'en-US')  // "1D"
  */
-export function formatPeriod (
+export function formatPeriod(
   period: { multiplier: number; timespan: string },
   locale: string
 ): string {
@@ -187,12 +189,12 @@ export function formatPeriod (
  * detectPricePrecision(1234.56)    // 2
  * detectPricePrecision(50000)      // 0
  */
-export function detectPricePrecision (price: number): number {
+export function detectPricePrecision(price: number): number {
   if (!isFinite(price) || price === 0) return 2
   const abs = Math.abs(price)
-  if (abs >= 1000)  return 0
-  if (abs >= 1)     return 2
-  if (abs >= 0.01)  return 4
+  if (abs >= 1000) return 0
+  if (abs >= 1) return 2
+  if (abs >= 0.01) return 4
   if (abs >= 0.0001) return 6
   return 8
 }

@@ -49,17 +49,26 @@ export interface BarReplayOptions {
 /**
  * Historical bar replay engine for manual strategy testing.
  *
+ * Important: for realistic backtesting, use `getRevealedBars()` to feed only
+ * bars up to the cursor into the chart. This ensures indicators only see data
+ * available at the replay point — not future bars.
+ *
  * Usage:
  * ```ts
  * const replay = new BarReplay({
  *   datafeed,
  *   symbol: { ticker: 'AAPL' },
  *   period: { multiplier: 1, timespan: 'day', text: 'D' },
- *   onBar: (bar, idx, total) => chart.applyMoreData([bar]),
+ *   onBar: (bar, idx, total) => {
+ *     // Feed only revealed bars for realistic indicator calculations
+ *     chart.setData(replay.getRevealedBars())
+ *   },
  *   onStateChange: (s) => console.log('state:', s),
  * })
  *
  * await replay.load()
+ * // Initialize chart with pre-replay context only
+ * chart.setData(replay.getRevealedBars())
  * replay.play()
  * ```
  */
@@ -70,15 +79,15 @@ export default class BarReplay {
   private _state: BarReplayState = 'idle'
   private _timer: ReturnType<typeof setInterval> | null = null
 
-  constructor (options: BarReplayOptions) {
+  constructor(options: BarReplayOptions) {
     this._opts = {
       startTime: 0,
       endTime: Date.now(),
       intervalMs: 500,
       initialBars: 300,
-      onBar: () => {},
-      onStateChange: () => {},
-      onFinish: () => {},
+      onBar: () => { },
+      onStateChange: () => { },
+      onFinish: () => { },
       ...options
     }
   }
@@ -87,19 +96,19 @@ export default class BarReplay {
   // Private
   // -------------------------------------------------------------------------
 
-  private _setState (state: BarReplayState): void {
+  private _setState(state: BarReplayState): void {
     this._state = state
     this._opts.onStateChange(state)
   }
 
-  private _emitCurrent (): void {
+  private _emitCurrent(): void {
     const bar = this._bars[this._cursor]
     if (bar) {
       this._opts.onBar(bar, this._cursor, this._bars.length)
     }
   }
 
-  private _advance (): void {
+  private _advance(): void {
     if (this._cursor >= this._bars.length - 1) {
       this._stop()
       this._setState('finished')
@@ -110,7 +119,7 @@ export default class BarReplay {
     this._emitCurrent()
   }
 
-  private _stop (): void {
+  private _stop(): void {
     if (this._timer !== null) {
       clearInterval(this._timer)
       this._timer = null
@@ -125,7 +134,7 @@ export default class BarReplay {
    * Load historical bars from the datafeed.
    * Must be called before play/step.
    */
-  async load (): Promise<void> {
+  async load(): Promise<void> {
     this._setState('idle')
     this._bars = []
     this._cursor = 0
@@ -149,37 +158,37 @@ export default class BarReplay {
    * Get the bars that have been "revealed" so far (up to and including cursor).
    * Use this to initialise the chart with the pre-replay context bars.
    */
-  getRevealedBars (): CandleData[] {
+  getRevealedBars(): CandleData[] {
     return this._bars.slice(0, this._cursor + 1)
   }
 
   /** Get all loaded bars (for reference). */
-  getAllBars (): CandleData[] {
+  getAllBars(): CandleData[] {
     return [...this._bars]
   }
 
   /** Current replay state. */
-  get state (): BarReplayState {
+  get state(): BarReplayState {
     return this._state
   }
 
   /** Index of the current bar (0-based from start of loaded bars). */
-  get cursor (): number {
+  get cursor(): number {
     return this._cursor
   }
 
   /** Total number of loaded bars. */
-  get total (): number {
+  get total(): number {
     return this._bars.length
   }
 
   /** Current bar or null if no bars loaded. */
-  get currentBar (): Nullable<CandleData> {
+  get currentBar(): Nullable<CandleData> {
     return this._bars[this._cursor] ?? null
   }
 
   /** Progress as a value between 0 and 1. */
-  get progress (): number {
+  get progress(): number {
     if (this._bars.length <= 1) return 0
     return this._cursor / (this._bars.length - 1)
   }
@@ -187,7 +196,7 @@ export default class BarReplay {
   /**
    * Start auto-playing the replay at the configured interval.
    */
-  play (): void {
+  play(): void {
     if (this._state === 'finished') return
     if (this._state === 'playing') return
 
@@ -200,7 +209,7 @@ export default class BarReplay {
   /**
    * Pause auto-play. Use play() to resume.
    */
-  pause (): void {
+  pause(): void {
     if (this._state !== 'playing') return
     this._stop()
     this._setState('paused')
@@ -209,7 +218,7 @@ export default class BarReplay {
   /**
    * Toggle between play and pause.
    */
-  togglePlayPause (): void {
+  togglePlayPause(): void {
     if (this._state === 'playing') {
       this.pause()
     } else {
@@ -220,7 +229,7 @@ export default class BarReplay {
   /**
    * Advance by one bar (manual step). Pauses auto-play if running.
    */
-  stepForward (): void {
+  stepForward(): void {
     if (this._state === 'playing') this.pause()
     this._advance()
   }
@@ -228,7 +237,7 @@ export default class BarReplay {
   /**
    * Go back one bar. Pauses auto-play if running.
    */
-  stepBack (): void {
+  stepBack(): void {
     if (this._state === 'playing') this.pause()
     if (this._cursor > 0) {
       this._cursor--
@@ -239,7 +248,7 @@ export default class BarReplay {
   /**
    * Jump to a specific bar index. Pauses auto-play.
    */
-  seekTo (index: number): void {
+  seekTo(index: number): void {
     if (this._state === 'playing') this.pause()
     const clamped = Math.max(0, Math.min(index, this._bars.length - 1))
     this._cursor = clamped
@@ -249,7 +258,7 @@ export default class BarReplay {
   /**
    * Seek to a timestamp. Finds the nearest bar at or before the given time.
    */
-  seekToTime (timestamp: number): void {
+  seekToTime(timestamp: number): void {
     if (this._bars.length === 0) return
     // Binary-search for the closest bar
     let lo = 0
@@ -266,7 +275,7 @@ export default class BarReplay {
    * Change the playback speed.
    * @param intervalMs Milliseconds between bars (lower = faster)
    */
-  setSpeed (intervalMs: number): void {
+  setSpeed(intervalMs: number): void {
     this._opts.intervalMs = Math.max(50, intervalMs)
     // Restart timer if playing
     if (this._state === 'playing') {
@@ -280,7 +289,7 @@ export default class BarReplay {
   /**
    * Reset replay to the beginning (before initial pre-load position).
    */
-  reset (): void {
+  reset(): void {
     this._stop()
     this._cursor = 0
     this._setState('idle')
@@ -289,7 +298,7 @@ export default class BarReplay {
   /**
    * Stop and clean up. Call when done with this instance.
    */
-  destroy (): void {
+  destroy(): void {
     this._stop()
     this._bars = []
     this._setState('idle')

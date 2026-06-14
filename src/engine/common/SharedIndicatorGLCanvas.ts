@@ -29,12 +29,12 @@ export class SharedIndicatorGLCanvas {
   // _lastSizeVersion use this to detect stale draws after a resize.
   private _sizeVersion = 0
 
-  constructor (container: HTMLElement) {
+  constructor(container: HTMLElement) {
     const canvas = document.createElement('canvas')
-    canvas.style.position      = 'absolute'
-    canvas.style.top           = '0'
-    canvas.style.left          = '0'
-    canvas.style.zIndex        = '1'   // below Canvas2D layers (z-index 2)
+    canvas.style.position = 'absolute'
+    canvas.style.top = '0'
+    canvas.style.left = '0'
+    canvas.style.zIndex = '1'   // below Canvas2D layers (z-index 2)
     canvas.style.pointerEvents = 'none'
     container.appendChild(canvas)
     this._canvas = canvas
@@ -59,25 +59,25 @@ export class SharedIndicatorGLCanvas {
     gl.enable(gl.SCISSOR_TEST)    // reject fragments outside the pane canvas
   }
 
-  get gl (): WebGL2RenderingContext { return this._gl }
-  get canvas (): HTMLCanvasElement  { return this._canvas }
+  get gl(): WebGL2RenderingContext { return this._gl }
+  get canvas(): HTMLCanvasElement { return this._canvas }
 
   /** Increments whenever the canvas is resized; renderers use this to detect stale state. */
-  get sizeVersion (): number { return this._sizeVersion }
+  get sizeVersion(): number { return this._sizeVersion }
 
   /**
    * Resize the shared canvas (idempotent — no-op when dimensions are unchanged).
    * Increments sizeVersion so that all renderers' isDirty() returns true after a resize,
    * ensuring they redraw even when their VBO data is unchanged.
    */
-  resize (width: number, height: number): void {
+  resize(width: number, height: number): void {
     const pixelRatio = getPixelRatio(this._canvas)
-    const w = Math.round(width  * pixelRatio)
+    const w = Math.round(width * pixelRatio)
     const h = Math.round(height * pixelRatio)
     if (this._canvas.width === w && this._canvas.height === h) return
-    this._canvas.style.width  = `${width}px`
+    this._canvas.style.width = `${width}px`
     this._canvas.style.height = `${height}px`
-    this._canvas.width  = w
+    this._canvas.width = w
     this._canvas.height = h
     this._sizeVersion++
   }
@@ -86,17 +86,17 @@ export class SharedIndicatorGLCanvas {
    * Begin a new render frame: set viewport + scissor, clear the canvas.
    * Call exactly ONCE per dirty frame, before any renderer's draw() runs.
    */
-  beginFrame (): void {
+  beginFrame(): void {
     const gl = this._gl
-    const w  = this._canvas.width
-    const h  = this._canvas.height
+    const w = this._canvas.width
+    const h = this._canvas.height
     gl.viewport(0, 0, w, h)
     gl.scissor(0, 0, w, h)
     gl.clearColor(0, 0, 0, 0)
     gl.clear(gl.COLOR_BUFFER_BIT)
   }
 
-  destroy (): void {
+  destroy(): void {
     this._gl.getExtension('WEBGL_lose_context')?.loseContext()
     this._canvas.remove()
   }
@@ -108,11 +108,17 @@ export class SharedIndicatorGLCanvas {
 
 const _cache = new WeakMap<object, SharedIndicatorGLCanvas>()
 
-export function getSharedIndicatorGLCanvas (widgetKey: object): SharedIndicatorGLCanvas | null {
+// Auto-cleanup when the widget key is garbage-collected.
+// This prevents DOM canvas leaks when destroy() is never called.
+const _cleanupRegistry = new FinalizationRegistry<SharedIndicatorGLCanvas>((canvas) => {
+  canvas.destroy()
+})
+
+export function getSharedIndicatorGLCanvas(widgetKey: object): SharedIndicatorGLCanvas | null {
   return _cache.get(widgetKey) ?? null
 }
 
-export function getOrCreateSharedIndicatorGLCanvas (
+export function getOrCreateSharedIndicatorGLCanvas(
   widgetKey: object,
   container: HTMLElement
 ): SharedIndicatorGLCanvas | null {
@@ -122,6 +128,7 @@ export function getOrCreateSharedIndicatorGLCanvas (
     try {
       c = new SharedIndicatorGLCanvas(container)
       _cache.set(widgetKey, c)
+      _cleanupRegistry.register(widgetKey, c, widgetKey)
     } catch {
       return null
     }
@@ -129,7 +136,7 @@ export function getOrCreateSharedIndicatorGLCanvas (
   return c
 }
 
-export function destroySharedIndicatorGLCanvas (widgetKey: object): void {
+export function destroySharedIndicatorGLCanvas(widgetKey: object): void {
   const c = _cache.get(widgetKey)
   if (c !== undefined) {
     c.destroy()

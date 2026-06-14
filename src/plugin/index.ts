@@ -16,19 +16,20 @@ type IndicatorPluginRuntimeData = {
   renderGL: null | (
     (gl: WebGL2RenderingContext, output: unknown[], viewport: Viewport, vbo: WebGLBuffer) => void
   )
+  figureKeys: string[] | null
 }
 
 type NormalizedIndicatorRow = Record<string, number | null>
 
-function isFiniteNumber (value: unknown): value is number {
+function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
 }
 
-function clamp (value: number, min: number, max: number): number {
+function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
 }
 
-function normalizeIndicatorRow (value: unknown): NormalizedIndicatorRow {
+function normalizeIndicatorRow(value: unknown): NormalizedIndicatorRow {
   if (isFiniteNumber(value)) {
     return { [DEFAULT_FIGURE_KEY]: value }
   }
@@ -46,7 +47,7 @@ function normalizeIndicatorRow (value: unknown): NormalizedIndicatorRow {
   return { [DEFAULT_FIGURE_KEY]: null }
 }
 
-function normalizeIndicatorOutput<TOutput> (
+function normalizeIndicatorOutput<TOutput>(
   rawOutput: readonly TOutput[],
   targetLength: number
 ): NormalizedIndicatorRow[] {
@@ -57,7 +58,7 @@ function normalizeIndicatorOutput<TOutput> (
   return rows
 }
 
-function extractFigureKeys (rows: readonly NormalizedIndicatorRow[]): string[] {
+function extractFigureKeys(rows: readonly NormalizedIndicatorRow[]): string[] {
   const keys: string[] = []
   const keySet = new Set<string>()
 
@@ -79,7 +80,7 @@ function extractFigureKeys (rows: readonly NormalizedIndicatorRow[]): string[] {
   return keys
 }
 
-function hasSameKeys (left: readonly string[], right: readonly string[]): boolean {
+function hasSameKeys(left: readonly string[], right: readonly string[]): boolean {
   if (left.length !== right.length) {
     return false
   }
@@ -91,7 +92,7 @@ function hasSameKeys (left: readonly string[], right: readonly string[]): boolea
   return true
 }
 
-function createFigures (keys: readonly string[]): Array<{ key: string, title: string, type: 'line' }> {
+function createFigures(keys: readonly string[]): Array<{ key: string, title: string, type: 'line' }> {
   return keys.map(key => {
     const text = key === DEFAULT_FIGURE_KEY ? 'Value' : key
     return {
@@ -102,7 +103,7 @@ function createFigures (keys: readonly string[]): Array<{ key: string, title: st
   })
 }
 
-function buildViewport (
+function buildViewport(
   dataList: CandleData[],
   visibleRange: { realFrom: number, realTo: number },
   priceRange: { realFrom: number, realTo: number },
@@ -139,7 +140,7 @@ function buildViewport (
   }
 }
 
-function getIndicatorRuntimeData (indicator: { extendData?: unknown }): IndicatorPluginRuntimeData | null {
+function getIndicatorRuntimeData(indicator: { extendData?: unknown }): IndicatorPluginRuntimeData | null {
   if (indicator.extendData === null || typeof indicator.extendData !== 'object') {
     return null
   }
@@ -152,35 +153,34 @@ function getIndicatorRuntimeData (indicator: { extendData?: unknown }): Indicato
   return runtimeData as IndicatorPluginRuntimeData
 }
 
-export function createIndicatorTemplateFromPlugin<TOutput> (
+export function createIndicatorTemplateFromPlugin<TOutput>(
   plugin: IndicatorPlugin<TOutput>
 ): IndicatorTemplate<NormalizedIndicatorRow, number> {
-  let figureKeys: string[] = [DEFAULT_FIGURE_KEY]
-
   const render2D = plugin.render2D === undefined
     ? null
     : (ctx: CanvasRenderingContext2D, output: TOutput[], viewport: Viewport): void => {
-        plugin.render2D?.(ctx, output, viewport)
-      }
+      plugin.render2D?.(ctx, output, viewport)
+    }
 
   const renderGL = plugin.renderGL === undefined
     ? null
     : (gl: WebGL2RenderingContext, output: TOutput[], viewport: Viewport, vbo: WebGLBuffer): void => {
-        plugin.renderGL?.(gl, output, viewport, vbo)
-      }
+      plugin.renderGL?.(gl, output, viewport, vbo)
+    }
 
   const template: IndicatorTemplate<NormalizedIndicatorRow, number> = {
     name: plugin.name,
     shortName: plugin.shortName ?? plugin.name,
     calcParams: [...(plugin.calcParams ?? [])],
-    figures: createFigures(figureKeys),
+    figures: createFigures([DEFAULT_FIGURE_KEY]),
     extendData: {
       [INDICATOR_PLUGIN_RUNTIME_KEY]: {
         output: [],
-        renderGL
+        renderGL,
+        figureKeys: null
       }
     },
-    calc (dataList, indicator) {
+    calc(dataList, indicator) {
       const rawOutput = plugin.calc(dataList, indicator.calcParams)
       const latestOutput = Array.isArray(rawOutput) ? rawOutput : []
 
@@ -191,9 +191,13 @@ export function createIndicatorTemplateFromPlugin<TOutput> (
 
       const normalizedRows = normalizeIndicatorOutput(latestOutput, dataList.length)
       const nextKeys = extractFigureKeys(normalizedRows)
-      if (!hasSameKeys(figureKeys, nextKeys)) {
-        figureKeys = nextKeys
-        indicator.figures = createFigures(figureKeys)
+      // Per-instance figureKeys stored in extendData to avoid shared
+      // closure mutation across panes using the same indicator template.
+      let localKeys = runtimeData?.figureKeys ?? null
+      if (localKeys === null || !hasSameKeys(localKeys, nextKeys)) {
+        localKeys = nextKeys
+        if (runtimeData !== null) runtimeData.figureKeys = nextKeys
+        indicator.figures = createFigures(nextKeys)
       }
       return normalizedRows
     }
@@ -218,17 +222,17 @@ export function createIndicatorTemplateFromPlugin<TOutput> (
   return template
 }
 
-export function registerIndicatorPlugin<TOutput> (plugin: IndicatorPlugin<TOutput>): void {
+export function registerIndicatorPlugin<TOutput>(plugin: IndicatorPlugin<TOutput>): void {
   registerIndicator(createIndicatorTemplateFromPlugin(plugin))
 }
 
-export function registerIndicatorPlugins (plugins: ReadonlyArray<IndicatorPlugin<unknown>>): void {
+export function registerIndicatorPlugins(plugins: ReadonlyArray<IndicatorPlugin<unknown>>): void {
   plugins.forEach(plugin => {
     registerIndicatorPlugin(plugin)
   })
 }
 
-export function mountChartPlugins (chart: Chart, plugins: ReadonlyArray<ChartPlugin>): () => void {
+export function mountChartPlugins(chart: Chart, plugins: ReadonlyArray<ChartPlugin>): () => void {
   const disposeList: Array<() => void> = []
 
   plugins.forEach(plugin => {

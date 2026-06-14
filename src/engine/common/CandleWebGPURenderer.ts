@@ -21,7 +21,7 @@
 import { getPixelRatio } from './utils/canvas'
 import {
   BYTES_PER_BAR, COLOR_BYTE_OFF, VERTS_PER_BAR,
-  parseColor
+  getOrCreateColor, packColor as _packColorUtil
 } from './candleShaders'
 import type { BarRenderData } from './CandleWebGLRenderer'
 
@@ -32,7 +32,7 @@ import type { BarRenderData } from './CandleWebGLRenderer'
 let _sharedDevice: GPUDevice | null = null
 let _sharedDevicePromise: Promise<GPUDevice> | null = null
 
-async function _getSharedGPUDevice (): Promise<GPUDevice> {
+async function _getSharedGPUDevice(): Promise<GPUDevice> {
   if (_sharedDevice !== null && !_sharedDevice.lost) return _sharedDevice
   if (_sharedDevicePromise !== null) return _sharedDevicePromise
   _sharedDevicePromise = (async () => {
@@ -191,7 +191,7 @@ let _gpuSupportChecked = false
 let _gpuSupported = false
 let _gpuSupportPromise: Promise<boolean> | null = null
 
-async function _checkGpuSupport (): Promise<boolean> {
+async function _checkGpuSupport(): Promise<boolean> {
   if (_gpuSupportChecked) return _gpuSupported
   if (_gpuSupportPromise !== null) return _gpuSupportPromise
   _gpuSupportPromise = (async (): Promise<boolean> => {
@@ -211,11 +211,11 @@ async function _checkGpuSupport (): Promise<boolean> {
 // ── Per-widget factory (same pattern as CandleWebGLRenderer) ─────────────────
 const _renderers = new WeakMap<object, CandleWebGPURenderer>()
 
-export function getWebGPURenderer (key: object): CandleWebGPURenderer | null {
+export function getWebGPURenderer(key: object): CandleWebGPURenderer | null {
   return _renderers.get(key) ?? null
 }
 
-export async function getOrCreateWebGPURenderer (
+export async function getOrCreateWebGPURenderer(
   key: object,
   container: HTMLElement
 ): Promise<CandleWebGPURenderer | null> {
@@ -230,7 +230,7 @@ export async function getOrCreateWebGPURenderer (
   }
 }
 
-export function destroyWebGPURenderer (key: object): void {
+export function destroyWebGPURenderer(key: object): void {
   const r = _renderers.get(key)
   if (r !== undefined) {
     r.destroy()
@@ -271,11 +271,11 @@ export class CandleWebGPURenderer {
   // CPU staging buffers — same packed layout as WebGL path.
   private _stagingBuf: ArrayBuffer = new ArrayBuffer(512 * BYTES_PER_BAR)
   private _stagingF32: Float32Array = new Float32Array(this._stagingBuf)
-  private _stagingU8:  Uint8Array   = new Uint8Array(this._stagingBuf)
+  private _stagingU8: Uint8Array = new Uint8Array(this._stagingBuf)
 
   private readonly _singleBarBuf = new ArrayBuffer(BYTES_PER_BAR)
   private readonly _singleBarF32 = new Float32Array(this._singleBarBuf)
-  private readonly _singleBarU8  = new Uint8Array(this._singleBarBuf)
+  private readonly _singleBarU8 = new Uint8Array(this._singleBarBuf)
 
   // Pre-allocated uniform data — avoids a new Float32Array every draw() call.
   private readonly _uniformData = new Float32Array(UBO_SIZE / 4)
@@ -295,12 +295,12 @@ export class CandleWebGPURenderer {
   private _fingerprintBarStep = 0
   private _panOffsetCss = 0
 
-  private _vboVersion   = 0
+  private _vboVersion = 0
   private _drawnVersion = -1
-  private _lastPriceFrom    = NaN
-  private _lastPriceRange   = NaN
+  private _lastPriceFrom = NaN
+  private _lastPriceRange = NaN
   private _lastBarHalfWidth = NaN
-  private _lastRenderMode   = -1
+  private _lastRenderMode = -1
   private _lastOhlcHalfSize = NaN
 
   private _canvasWidthCss = 0
@@ -325,7 +325,7 @@ export class CandleWebGPURenderer {
   private _tsCanQuery = false
 
   // Private constructor — use `CandleWebGPURenderer.create()`.
-  private constructor (
+  private constructor(
     canvas: HTMLCanvasElement,
     context: GPUCanvasContext,
     device: GPUDevice,
@@ -333,11 +333,11 @@ export class CandleWebGPURenderer {
     uniformBuffer: GPUBuffer,
     uniformBindGroup: GPUBindGroup
   ) {
-    this._canvas          = canvas
-    this._context         = context
-    this._device          = device
-    this._pipeline        = pipeline
-    this._uniformBuffer   = uniformBuffer
+    this._canvas = canvas
+    this._context = context
+    this._device = device
+    this._pipeline = pipeline
+    this._uniformBuffer = uniformBuffer
     this._uniformBindGroup = uniformBindGroup
 
     // P2-C: create indirect draw buffer (4 × u32: vertexCount, instanceCount, firstVertex, firstInstance)
@@ -364,7 +364,7 @@ export class CandleWebGPURenderer {
   }
 
   /** Async factory — requests adapter + device, compiles pipeline. */
-  static async create (container: HTMLElement): Promise<CandleWebGPURenderer> {
+  static async create(container: HTMLElement): Promise<CandleWebGPURenderer> {
     if (!('gpu' in navigator)) throw new Error('[CandleWebGPURenderer] WebGPU not supported')
 
     // P2-D: re-use shared device across all panes in the same page
@@ -412,9 +412,9 @@ export class CandleWebGPURenderer {
       arrayStride: BYTES_PER_BAR,
       stepMode: 'instance',
       attributes: [
-        { shaderLocation: 0, offset:  0, format: 'float32' },   // centerX
-        { shaderLocation: 1, offset:  4, format: 'float32' },   // open
-        { shaderLocation: 2, offset:  8, format: 'float32' },   // high
+        { shaderLocation: 0, offset: 0, format: 'float32' },   // centerX
+        { shaderLocation: 1, offset: 4, format: 'float32' },   // open
+        { shaderLocation: 2, offset: 8, format: 'float32' },   // high
         { shaderLocation: 3, offset: 12, format: 'float32' },   // low
         { shaderLocation: 4, offset: 16, format: 'float32' },   // close
         { shaderLocation: 5, offset: 20, format: 'unorm8x4' },  // wickColor   (normalised)
@@ -437,7 +437,7 @@ export class CandleWebGPURenderer {
           format,
           blend: {
             color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add' },
-            alpha: { srcFactor: 'one',        dstFactor: 'one-minus-src-alpha', operation: 'add' }
+            alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' }
           }
         }]
       },
@@ -450,49 +450,41 @@ export class CandleWebGPURenderer {
   // ── Capability check ──────────────────────────────────────────────────────
 
   /** Async: resolves `true` only when a WebGPU adapter is available. */
-  static async isSupported (): Promise<boolean> {
+  static async isSupported(): Promise<boolean> {
     return _checkGpuSupport()
   }
 
   // ── Resize ────────────────────────────────────────────────────────────────
 
-  resize (width: number, height: number): void {
+  resize(width: number, height: number): void {
     if (this._canvasWidthCss === width && this._canvas.style.width === `${width}px`) return
     this._canvasWidthCss = width
     const pr = getPixelRatio(this._canvas)
-    const pw = Math.round(width  * pr)
+    const pw = Math.round(width * pr)
     const ph = Math.round(height * pr)
     if (this._canvas.width === pw && this._canvas.height === ph) return
-    this._canvas.width  = pw
+    this._canvas.width = pw
     this._canvas.height = ph
-    this._canvas.style.width  = `${width}px`
+    this._canvas.style.width = `${width}px`
     this._canvas.style.height = `${height}px`
     this._vboVersion++  // dimension reset → must re-render
   }
 
   // ── Colour helpers ────────────────────────────────────────────────────────
 
-  private _parseColorCached (color: string): readonly [number, number, number, number] {
-    let c = this._colorCache.get(color)
-    if (c === undefined) {
-      c = parseColor(color)
-      this._colorCache.set(color, c)
-    }
-    return c
+  private _parseColorCached(color: string): readonly [number, number, number, number] {
+    return getOrCreateColor(color, this._colorCache)
   }
 
-  private _packColor (
+  private _packColor(
     rgba: readonly [number, number, number, number],
     u8: Uint8Array,
     byteOffset: number
   ): void {
-    u8[byteOffset]     = (rgba[0] * 255 + 0.5) | 0
-    u8[byteOffset + 1] = (rgba[1] * 255 + 0.5) | 0
-    u8[byteOffset + 2] = (rgba[2] * 255 + 0.5) | 0
-    u8[byteOffset + 3] = (rgba[3] * 255 + 0.5) | 0
+    _packColorUtil(rgba, u8, byteOffset)
   }
 
-  private _writeBarIntoViews (
+  private _writeBarIntoViews(
     bar: BarRenderData,
     f32: Float32Array,
     u8: Uint8Array,
@@ -504,46 +496,48 @@ export class CandleWebGPURenderer {
     f32[f32Base + 2] = bar.high
     f32[f32Base + 3] = bar.low
     f32[f32Base + 4] = bar.close
-    this._packColor(this._parseColorCached(bar.wickColor),   u8, byteBase + COLOR_BYTE_OFF)
-    this._packColor(this._parseColorCached(bar.bodyColor),   u8, byteBase + COLOR_BYTE_OFF + 4)
+    this._packColor(this._parseColorCached(bar.wickColor), u8, byteBase + COLOR_BYTE_OFF)
+    this._packColor(this._parseColorCached(bar.bodyColor), u8, byteBase + COLOR_BYTE_OFF + 4)
     this._packColor(this._parseColorCached(bar.borderColor), u8, byteBase + COLOR_BYTE_OFF + 8)
   }
 
   // ── LOD ───────────────────────────────────────────────────────────────────
 
-  private _applyLod (rawBars: BarRenderData[], targetCount: number): void {
+  private _applyLod(rawBars: BarRenderData[], targetCount: number): void {
     while (this._lodBuf.length < targetCount) {
-      this._lodBuf.push({ centerX: 0, open: 0, high: 0, low: 0, close: 0,
-        wickColor: '', bodyColor: '', borderColor: '' })
+      this._lodBuf.push({
+        centerX: 0, open: 0, high: 0, low: 0, close: 0,
+        wickColor: '', bodyColor: '', borderColor: ''
+      })
     }
-    const n    = rawBars.length
+    const n = rawBars.length
     const step = n / targetCount
     for (let i = 0; i < targetCount; i++) {
       const startIdx = Math.floor(i * step)
-      const endIdx   = Math.min(Math.floor((i + 1) * step) - 1, n - 1)
-      const first    = rawBars[startIdx]
-      const last     = rawBars[endIdx]
+      const endIdx = Math.min(Math.floor((i + 1) * step) - 1, n - 1)
+      const first = rawBars[startIdx]
+      const last = rawBars[endIdx]
       let high = first.high
-      let low  = first.low
+      let low = first.low
       for (let j = startIdx + 1; j <= endIdx; j++) {
         if (rawBars[j].high > high) high = rawBars[j].high
-        if (rawBars[j].low  < low)  low  = rawBars[j].low
+        if (rawBars[j].low < low) low = rawBars[j].low
       }
       const out = this._lodBuf[i]
-      out.centerX     = first.centerX
-      out.open        = first.open
-      out.high        = high
-      out.low         = low
-      out.close       = last.close
-      out.wickColor   = last.wickColor
-      out.bodyColor   = last.bodyColor
+      out.centerX = first.centerX
+      out.open = first.open
+      out.high = high
+      out.low = low
+      out.close = last.close
+      out.wickColor = last.wickColor
+      out.bodyColor = last.bodyColor
       out.borderColor = last.borderColor
     }
   }
 
   // ── GPU buffer management ─────────────────────────────────────────────────
 
-  private _ensureInstanceBuffer (count: number): GPUBuffer {
+  private _ensureInstanceBuffer(count: number): GPUBuffer {
     if (this._instanceBuffer !== null && count <= this._instanceCapacity) {
       return this._instanceBuffer
     }
@@ -559,7 +553,7 @@ export class CandleWebGPURenderer {
     // Grow CPU staging buffers in lock-step
     this._stagingBuf = new ArrayBuffer(newCap * BYTES_PER_BAR)
     this._stagingF32 = new Float32Array(this._stagingBuf)
-    this._stagingU8  = new Uint8Array(this._stagingBuf)
+    this._stagingU8 = new Uint8Array(this._stagingBuf)
     return this._instanceBuffer
   }
 
@@ -568,7 +562,7 @@ export class CandleWebGPURenderer {
   /**
    * Full VBO upload — same fingerprint / LOD / pan-offset logic as the WebGL path.
    */
-  setData (rawBars: BarRenderData[]): void {
+  setData(rawBars: BarRenderData[]): void {
     const LOD_THRESHOLD = 1.5
     let bars: BarRenderData[]
     if (this._canvasWidthCss > 0 && rawBars.length > this._canvasWidthCss * LOD_THRESHOLD) {
@@ -588,15 +582,15 @@ export class CandleWebGPURenderer {
     }
 
     const firstBar = bars[0]
-    const lastBar  = bars[visibleBarCount - 1]
+    const lastBar = bars[visibleBarCount - 1]
 
     // O(1) fingerprint — identical to WebGL path
     if (
-      visibleBarCount     === this._fingerprintBarCount     &&
-      firstBar.centerX    === this._fingerprintFirstX       &&
-      lastBar.centerX     === this._fingerprintLastX        &&
-      lastBar.close       === this._fingerprintLastClose    &&
-      lastBar.bodyColor   === this._fingerprintLastBodyColor
+      visibleBarCount === this._fingerprintBarCount &&
+      firstBar.centerX === this._fingerprintFirstX &&
+      lastBar.centerX === this._fingerprintLastX &&
+      lastBar.close === this._fingerprintLastClose &&
+      lastBar.bodyColor === this._fingerprintLastBodyColor
     ) return
 
     const currentBarStep = visibleBarCount >= 2
@@ -604,35 +598,35 @@ export class CandleWebGPURenderer {
       : this._fingerprintBarStep
     // Pure pan → update only pan offset uniform
     if (
-      visibleBarCount     === this._fingerprintBarCount      &&
-      lastBar.close       === this._fingerprintLastClose     &&
-      lastBar.bodyColor   === this._fingerprintLastBodyColor &&
-      firstBar.open       === this._fingerprintFirstOpen     &&
-      firstBar.close      === this._fingerprintFirstClose    &&
-      currentBarStep      === this._fingerprintBarStep
+      visibleBarCount === this._fingerprintBarCount &&
+      lastBar.close === this._fingerprintLastClose &&
+      lastBar.bodyColor === this._fingerprintLastBodyColor &&
+      firstBar.open === this._fingerprintFirstOpen &&
+      firstBar.close === this._fingerprintFirstClose &&
+      currentBarStep === this._fingerprintBarStep
     ) {
       this._panOffsetCss += firstBar.centerX - this._fingerprintFirstX
       this._fingerprintFirstX = firstBar.centerX
-      this._fingerprintLastX  = lastBar.centerX
+      this._fingerprintLastX = lastBar.centerX
       this._vboVersion++
       return
     }
 
     // Full re-upload
-    this._panOffsetCss              = 0
-    this._fingerprintBarCount       = visibleBarCount
-    this._fingerprintFirstX         = firstBar.centerX
-    this._fingerprintLastX          = lastBar.centerX
-    this._fingerprintLastClose      = lastBar.close
-    this._fingerprintLastBodyColor  = lastBar.bodyColor
-    this._fingerprintFirstOpen      = firstBar.open
-    this._fingerprintFirstClose     = firstBar.close
-    this._fingerprintBarStep        = currentBarStep
+    this._panOffsetCss = 0
+    this._fingerprintBarCount = visibleBarCount
+    this._fingerprintFirstX = firstBar.centerX
+    this._fingerprintLastX = lastBar.centerX
+    this._fingerprintLastClose = lastBar.close
+    this._fingerprintLastBodyColor = lastBar.bodyColor
+    this._fingerprintFirstOpen = firstBar.open
+    this._fingerprintFirstClose = firstBar.close
+    this._fingerprintBarStep = currentBarStep
 
     this._ensureInstanceBuffer(visibleBarCount)
 
     const f32 = this._stagingF32
-    const u8  = this._stagingU8
+    const u8 = this._stagingU8
     for (let i = 0; i < visibleBarCount; i++) {
       this._writeBarIntoViews(bars[i], f32, u8, i << 3, i * BYTES_PER_BAR)
     }
@@ -659,7 +653,7 @@ export class CandleWebGPURenderer {
   /**
    * O(1) partial update for the live tick.  No-op when LOD is active.
    */
-  updateLastBar (bar: BarRenderData): void {
+  updateLastBar(bar: BarRenderData): void {
     if (this._barCount === 0 || this._lodActive || this._instanceBuffer === null) return
     this._fingerprintLastClose = bar.close
     this._writeBarIntoViews(bar, this._singleBarF32, this._singleBarU8, 0, 0)
@@ -675,7 +669,7 @@ export class CandleWebGPURenderer {
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  draw (
+  draw(
     priceFrom: number,
     priceRange: number,
     barHalfWidth: number,
@@ -686,19 +680,19 @@ export class CandleWebGPURenderer {
 
     // Incremental dirty gate — same logic as WebGL path
     if (
-      this._vboVersion     === this._drawnVersion    &&
-      priceFrom            === this._lastPriceFrom   &&
-      priceRange           === this._lastPriceRange  &&
-      barHalfWidth         === this._lastBarHalfWidth &&
-      renderMode           === this._lastRenderMode  &&
-      ohlcHalfSize         === this._lastOhlcHalfSize
+      this._vboVersion === this._drawnVersion &&
+      priceFrom === this._lastPriceFrom &&
+      priceRange === this._lastPriceRange &&
+      barHalfWidth === this._lastBarHalfWidth &&
+      renderMode === this._lastRenderMode &&
+      ohlcHalfSize === this._lastOhlcHalfSize
     ) return
 
-    this._drawnVersion     = this._vboVersion
-    this._lastPriceFrom    = priceFrom
-    this._lastPriceRange   = priceRange
+    this._drawnVersion = this._vboVersion
+    this._lastPriceFrom = priceFrom
+    this._lastPriceRange = priceRange
     this._lastBarHalfWidth = barHalfWidth
-    this._lastRenderMode   = renderMode
+    this._lastRenderMode = renderMode
     this._lastOhlcHalfSize = ohlcHalfSize
 
     const pr = getPixelRatio(this._canvas)
@@ -803,20 +797,20 @@ export class CandleWebGPURenderer {
   }
 
   /** P6-B: Returns average GPU render time in milliseconds (rolling mean). */
-  getAverageGpuMs (): number {
+  getAverageGpuMs(): number {
     if (this._tsSampleCount === 0) return 0
     return this._tsTotalNs / this._tsSampleCount / 1e6
   }
 
   /** P6-B: Reset GPU timing accumulators. */
-  resetGpuMetrics (): void {
+  resetGpuMetrics(): void {
     this._tsTotalNs = 0
     this._tsSampleCount = 0
   }
 
   // ── Cleanup ───────────────────────────────────────────────────────────────
 
-  destroy (): void {
+  destroy(): void {
     this._instanceBuffer?.destroy()
     this._uniformBuffer.destroy()
     // P2-C: destroy indirect draw buffer

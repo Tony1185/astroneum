@@ -1,5 +1,6 @@
 import { getPixelRatio } from './utils/canvas'
 import { type SharedIndicatorGLCanvas } from './SharedIndicatorGLCanvas'
+import { getOrCreateColor } from './candleShaders'
 
 // ---------------------------------------------------------------------------
 // GPU rect/bar renderer for histogram-style indicator figures (Priority 4).
@@ -91,7 +92,7 @@ void main() { fragColor = v_color; }
 // Shader helpers
 // ---------------------------------------------------------------------------
 
-function compileShader (gl: WebGL2RenderingContext, type: GLenum, src: string): WebGLShader {
+function compileShader(gl: WebGL2RenderingContext, type: GLenum, src: string): WebGLShader {
   const shader = gl.createShader(type)!
   gl.shaderSource(shader, src)
   gl.compileShader(shader)
@@ -101,8 +102,8 @@ function compileShader (gl: WebGL2RenderingContext, type: GLenum, src: string): 
   return shader
 }
 
-function createProgram (gl: WebGL2RenderingContext): WebGLProgram {
-  const vert = compileShader(gl, gl.VERTEX_SHADER,   VERT_SRC)
+function createProgram(gl: WebGL2RenderingContext): WebGLProgram {
+  const vert = compileShader(gl, gl.VERTEX_SHADER, VERT_SRC)
   const frag = compileShader(gl, gl.FRAGMENT_SHADER, FRAG_SRC)
   const prog = gl.createProgram()!
   gl.attachShader(prog, vert)
@@ -116,44 +117,7 @@ function createProgram (gl: WebGL2RenderingContext): WebGLProgram {
   return prog
 }
 
-// ---------------------------------------------------------------------------
-// Colour helpers
-// ---------------------------------------------------------------------------
-
-function hexToRgba (hex: string): [number, number, number, number] {
-  const h = hex.replace('#', '')
-  if (h.length === 6 || h.length === 8) {
-    return [
-      parseInt(h.slice(0, 2), 16) / 255,
-      parseInt(h.slice(2, 4), 16) / 255,
-      parseInt(h.slice(4, 6), 16) / 255,
-      h.length === 8 ? parseInt(h.slice(6, 8), 16) / 255 : 1
-    ]
-  }
-  if (h.length === 3) {
-    return [
-      parseInt(h[0] + h[0], 16) / 255,
-      parseInt(h[1] + h[1], 16) / 255,
-      parseInt(h[2] + h[2], 16) / 255,
-      1
-    ]
-  }
-  return [0, 0, 0, 1]
-}
-
-function parseCSSColor (color: string): [number, number, number, number] {
-  if (color.startsWith('#')) return hexToRgba(color)
-  const m = color.match(/rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)/)
-  if (m !== null) {
-    return [
-      parseFloat(m[1]) / 255,
-      parseFloat(m[2]) / 255,
-      parseFloat(m[3]) / 255,
-      m[4] !== undefined ? parseFloat(m[4]) : 1
-    ]
-  }
-  return [0, 0, 0, 1]
-}
+// Colour helpers imported from candleShaders (hexToRgba, parseColor, getOrCreateColor)
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -177,12 +141,12 @@ export class IndicatorRectWebGLRenderer {
   private readonly _uResolution: WebGLUniformLocation
   private readonly _uPixelRatio: WebGLUniformLocation
 
-  private _capacity  = 0
+  private _capacity = 0
   private _rectCount = 0
 
   private _stagingBuf: ArrayBuffer = new ArrayBuffer(512 * BYTES_PER_RECT)
   private _stagingF32: Float32Array = new Float32Array(this._stagingBuf)
-  private _stagingU8:  Uint8Array   = new Uint8Array(this._stagingBuf)
+  private _stagingU8: Uint8Array = new Uint8Array(this._stagingBuf)
 
   private readonly _colorCache = new Map<string, readonly [number, number, number, number]>()
   private readonly _colorHashCache = new Map<string, number>()
@@ -202,11 +166,11 @@ export class IndicatorRectWebGLRenderer {
   //  _vboVersion increments whenever the VBO is actually written.
   //  isDirty() compares _drawnVersion and _lastSizeVersion against the shared
   //  canvas state so the view can skip beginFrame() + draw() on clean frames.
-  private _vboVersion      = 0
-  private _drawnVersion    = -1
+  private _vboVersion = 0
+  private _drawnVersion = -1
   private _lastSizeVersion = -1
 
-  constructor (sharedCanvas: SharedIndicatorGLCanvas) {
+  constructor(sharedCanvas: SharedIndicatorGLCanvas) {
     this._sharedCanvas = sharedCanvas
     const gl = sharedCanvas.gl
     this._gl = gl
@@ -233,8 +197,8 @@ export class IndicatorRectWebGLRenderer {
   // Attribute bindings
   // ---------------------------------------------------------------------------
 
-  private _setupAttribs (gl: WebGL2RenderingContext): void {
-    const prog   = this._program
+  private _setupAttribs(gl: WebGL2RenderingContext): void {
+    const prog = this._program
     const stride = BYTES_PER_RECT
 
     const bindF32 = (name: string, byteOffset: number): void => {
@@ -245,9 +209,9 @@ export class IndicatorRectWebGLRenderer {
       gl.vertexAttribDivisor(loc, 1)
     }
 
-    bindF32('a_x',      0)
-    bindF32('a_y',      4)
-    bindF32('a_width',  8)
+    bindF32('a_x', 0)
+    bindF32('a_y', 4)
+    bindF32('a_width', 8)
     bindF32('a_height', 12)
 
     const colorLoc = gl.getAttribLocation(prog, 'a_color')
@@ -266,16 +230,16 @@ export class IndicatorRectWebGLRenderer {
    * Returns true when the renderer's output is stale and must be redrawn.
    * Stale when the VBO contents changed OR the shared canvas was resized.
    */
-  isDirty (): boolean {
+  isDirty(): boolean {
     return this._vboVersion !== this._drawnVersion ||
-           this._lastSizeVersion !== this._sharedCanvas.sizeVersion
+      this._lastSizeVersion !== this._sharedCanvas.sizeVersion
   }
 
   // ---------------------------------------------------------------------------
   // Resize — delegates to the shared canvas (idempotent).
   // ---------------------------------------------------------------------------
 
-  resize (width: number, height: number): void {
+  resize(width: number, height: number): void {
     this._sharedCanvas.resize(width, height)
   }
 
@@ -283,36 +247,31 @@ export class IndicatorRectWebGLRenderer {
   // VBO management
   // ---------------------------------------------------------------------------
 
-  private _ensureCapacity (count: number): void {
+  private _ensureCapacity(count: number): void {
     if (count <= this._capacity) return
     const newCap = Math.max(count, this._capacity * 2, 512)
     this._stagingBuf = new ArrayBuffer(newCap * BYTES_PER_RECT)
     this._stagingF32 = new Float32Array(this._stagingBuf)
-    this._stagingU8  = new Uint8Array(this._stagingBuf)
+    this._stagingU8 = new Uint8Array(this._stagingBuf)
     const gl = this._gl
     gl.bindBuffer(gl.ARRAY_BUFFER, this._vbo)
     gl.bufferData(gl.ARRAY_BUFFER, newCap * BYTES_PER_RECT, gl.DYNAMIC_DRAW)
     this._capacity = newCap
   }
 
-  private _parseColorCached (color: string): readonly [number, number, number, number] {
-    let cachedColor = this._colorCache.get(color)
-    if (cachedColor === undefined) {
-      cachedColor = parseCSSColor(color)
-      this._colorCache.set(color, cachedColor)
-    }
-    return cachedColor
+  private _parseColorCached(color: string): readonly [number, number, number, number] {
+    return getOrCreateColor(color, this._colorCache)
   }
 
-  private _mixHash (hash: number, value: number): number {
+  private _mixHash(hash: number, value: number): number {
     return Math.imul(hash ^ value, FNV_PRIME) >>> 0
   }
 
-  private _hashQuantized (value: number): number {
+  private _hashQuantized(value: number): number {
     return Math.round(value * FINGERPRINT_SCALE) | 0
   }
 
-  private _hashColorCached (color: string): number {
+  private _hashColorCached(color: string): number {
     let colorHash = this._colorHashCache.get(color)
     if (colorHash === undefined) {
       colorHash = FNV_OFFSET_BASIS
@@ -332,7 +291,7 @@ export class IndicatorRectWebGLRenderer {
    * Dirty-flag: skips the GPU upload when the culled batch is identical to
    * the previous frame.
    */
-  setData (rects: RectInstanceData[]): void {
+  setData(rects: RectInstanceData[]): void {
     // Sub-pixel culling pass — compact visible rects into the reused buffer
     const culledBuf = this._culledBuf
     let culledCount = 0
@@ -359,8 +318,8 @@ export class IndicatorRectWebGLRenderer {
     }
 
     if (
-      rectCount      === this._fingerprintRectCount &&
-      geometryHash   === this._fingerprintHash
+      rectCount === this._fingerprintRectCount &&
+      geometryHash === this._fingerprintHash
     ) return
 
     this._fingerprintRectCount = rectCount
@@ -369,17 +328,17 @@ export class IndicatorRectWebGLRenderer {
     this._ensureCapacity(rectCount)
 
     const f32 = this._stagingF32
-    const u8  = this._stagingU8
+    const u8 = this._stagingU8
     for (let i = 0; i < rectCount; i++) {
-      const rect     = culledBuf[i]
-      const f32Base  = i * 4          // 4 float32 fields per rect
+      const rect = culledBuf[i]
+      const f32Base = i * 4          // 4 float32 fields per rect
       const byteBase = i * BYTES_PER_RECT
       f32[f32Base + 0] = rect.x
       f32[f32Base + 1] = rect.y
       f32[f32Base + 2] = rect.width
       f32[f32Base + 3] = rect.height
       const rgba = this._parseColorCached(rect.color)
-      u8[byteBase + COLOR_BYTE_OFF]     = (rgba[0] * 255 + 0.5) | 0
+      u8[byteBase + COLOR_BYTE_OFF] = (rgba[0] * 255 + 0.5) | 0
       u8[byteBase + COLOR_BYTE_OFF + 1] = (rgba[1] * 255 + 0.5) | 0
       u8[byteBase + COLOR_BYTE_OFF + 2] = (rgba[2] * 255 + 0.5) | 0
       u8[byteBase + COLOR_BYTE_OFF + 3] = (rgba[3] * 255 + 0.5) | 0
@@ -396,16 +355,16 @@ export class IndicatorRectWebGLRenderer {
    * Caller MUST call sharedCanvas.beginFrame() before this and check isDirty()
    * first — this method always draws (dirty tracking is done by the view).
    */
-  draw (): void {
+  draw(): void {
     const shared = this._sharedCanvas
     const canvas = shared.canvas
-    const gl     = this._gl
+    const gl = this._gl
     const pr = getPixelRatio(canvas)
-    const w  = canvas.width
-    const h  = canvas.height
+    const w = canvas.width
+    const h = canvas.height
 
     // Mark as current — viewport/scissor/clear already handled by beginFrame().
-    this._drawnVersion    = this._vboVersion
+    this._drawnVersion = this._vboVersion
     this._lastSizeVersion = shared.sizeVersion
 
     if (this._rectCount === 0) return
@@ -423,7 +382,7 @@ export class IndicatorRectWebGLRenderer {
   // Cleanup
   // ---------------------------------------------------------------------------
 
-  destroy (): void {
+  destroy(): void {
     const gl = this._gl
     gl.deleteVertexArray(this._vao)
     gl.deleteBuffer(this._vbo)
@@ -435,11 +394,11 @@ export class IndicatorRectWebGLRenderer {
 
 const _rectRendererCache = new WeakMap<object, IndicatorRectWebGLRenderer>()
 
-export function getRectRenderer (widgetKey: object): IndicatorRectWebGLRenderer | null {
+export function getRectRenderer(widgetKey: object): IndicatorRectWebGLRenderer | null {
   return _rectRendererCache.get(widgetKey) ?? null
 }
 
-export function getOrCreateRectRenderer (
+export function getOrCreateRectRenderer(
   widgetKey: object,
   sharedCanvas: SharedIndicatorGLCanvas
 ): IndicatorRectWebGLRenderer {
@@ -451,7 +410,7 @@ export function getOrCreateRectRenderer (
   return r
 }
 
-export function destroyRectRenderer (widgetKey: object): void {
+export function destroyRectRenderer(widgetKey: object): void {
   const r = _rectRendererCache.get(widgetKey)
   if (r !== undefined) {
     r.destroy()
@@ -464,7 +423,7 @@ export function destroyRectRenderer (widgetKey: object): void {
 // GPU path: solid fill, plain string color, no borderRadius, no border.
 // Everything else falls back to Canvas2D (transparent, gradient, rounded, etc.)
 // ---------------------------------------------------------------------------
-export function isGpuRectEligible (styles: {
+export function isGpuRectEligible(styles: {
   style?: string
   color?: unknown
   borderRadius?: unknown
@@ -477,6 +436,6 @@ export function isGpuRectEligible (styles: {
   if (color === 'transparent' || color === '') return false
   if (borderRadius !== undefined && borderRadius !== 0) return false
   if (borderSize !== undefined && borderSize > 0 &&
-      typeof borderColor === 'string' && borderColor !== 'transparent') return false
+    typeof borderColor === 'string' && borderColor !== 'transparent') return false
   return true
 }

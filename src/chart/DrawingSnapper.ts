@@ -24,7 +24,19 @@ export interface SnapLevel {
   type: 'round' | 'session_high' | 'session_low' | 'session_open' | 'session_close'
 }
 
-function computeRoundLevels (low: number, high: number): number[] {
+function maxInArray(arr: number[]): number {
+  let max = -Infinity
+  for (let i = 0; i < arr.length; i++) { if (arr[i] > max) max = arr[i] }
+  return max
+}
+
+function minInArray(arr: number[]): number {
+  let min = Infinity
+  for (let i = 0; i < arr.length; i++) { if (arr[i] < min) min = arr[i] }
+  return min
+}
+
+function computeRoundLevels(low: number, high: number): number[] {
   const range = high - low
   if (range <= 0) return []
 
@@ -41,7 +53,7 @@ function computeRoundLevels (low: number, high: number): number[] {
   return levels
 }
 
-function sessionExtremes (bars: CandleData[]): Pick<SnapLevel, 'price' | 'label' | 'type'>[] {
+function sessionExtremes(bars: CandleData[]): Pick<SnapLevel, 'price' | 'label' | 'type'>[] {
   if (bars.length === 0) return []
   const last = bars[bars.length - 1]
   // Use last full day as "session"
@@ -54,10 +66,10 @@ function sessionExtremes (bars: CandleData[]): Pick<SnapLevel, 'price' | 'label'
   const lows = sessionBars.map(b => b.low)
 
   return [
-    { price: sessionBars[0].open,        label: 'Prev Open',  type: 'session_open' },
-    { price: last.close,                  label: 'Last Close', type: 'session_close' },
-    { price: Math.max(...highs),          label: 'Sess High',  type: 'session_high' },
-    { price: Math.min(...lows),           label: 'Sess Low',   type: 'session_low' }
+    { price: sessionBars[0].open, label: 'Prev Open', type: 'session_open' },
+    { price: last.close, label: 'Last Close', type: 'session_close' },
+    { price: maxInArray(highs), label: 'Sess High', type: 'session_high' },
+    { price: minInArray(lows), label: 'Sess Low', type: 'session_low' }
   ]
 }
 
@@ -66,19 +78,19 @@ export class DrawingSnapper {
   private _enabled = false
   private _animFrame: number | null = null
 
-  constructor (chart: Chart) {
+  constructor(chart: Chart) {
     this._chart = chart
   }
 
-  get enabled (): boolean { return this._enabled }
+  get enabled(): boolean { return this._enabled }
 
-  enable (): void {
+  enable(): void {
     if (this._enabled) return
     this._enabled = true
     this._refresh()
   }
 
-  disable (): void {
+  disable(): void {
     if (!this._enabled) return
     this._enabled = false
     this._removeGuides()
@@ -88,7 +100,7 @@ export class DrawingSnapper {
     }
   }
 
-  toggle (): void {
+  toggle(): void {
     if (this._enabled) { this.disable() } else { this.enable() }
   }
 
@@ -96,7 +108,7 @@ export class DrawingSnapper {
    * Call this when the chart scrolls/zooms to refresh snap guides.
    * Debounced via rAF.
    */
-  refresh (): void {
+  refresh(): void {
     if (!this._enabled) return
     if (this._animFrame !== null) cancelAnimationFrame(this._animFrame)
     this._animFrame = requestAnimationFrame(() => {
@@ -105,7 +117,7 @@ export class DrawingSnapper {
     })
   }
 
-  private _refresh (): void {
+  private _refresh(): void {
     this._removeGuides()
     const levels = this._computeLevels()
     for (const lvl of levels) {
@@ -135,19 +147,19 @@ export class DrawingSnapper {
     }
   }
 
-  private _removeGuides (): void {
+  private _removeGuides(): void {
     try { this._chart.removeOverlay({ groupId: GUIDE_GROUP }) } catch { /* ignore */ }
   }
 
-  private _computeLevels (): SnapLevel[] {
+  private _computeLevels(): SnapLevel[] {
     const data = this._chart.getDataList?.() as CandleData[] | undefined
     if (!data || data.length === 0) return []
 
     const visible = data.slice(Math.max(0, data.length - 200))
     const highs = visible.map(b => b.high)
     const lows = visible.map(b => b.low)
-    const high = Math.max(...highs)
-    const low = Math.min(...lows)
+    const high = maxInArray(highs)
+    const low = minInArray(lows)
 
     const roundLevels: SnapLevel[] = computeRoundLevels(low, high).map(price => ({
       price,
@@ -162,3 +174,66 @@ export class DrawingSnapper {
 }
 
 export default DrawingSnapper
+
+// ---------------------------------------------------------------------------
+// Magnet helpers — snap drawing handles to bar OHLC points
+// ---------------------------------------------------------------------------
+
+const SNAP_PIXEL_THRESHOLD = 8
+
+/**
+ * Find the nearest OHLC price point to a given canvas Y coordinate.
+ * Returns the snapped price and Y position, or null if nothing within threshold.
+ */
+export function snapToOhlc(
+  data: CandleData[],
+  barSpace: number,
+  targetY: number,
+  priceToY: (price: number) => number
+): { price: number; y: number; type: 'open' | 'high' | 'low' | 'close' } | null {
+  if (data.length === 0) return null
+
+  let bestDist = SNAP_PIXEL_THRESHOLD
+  let best: { price: number; y: number; type: 'open' | 'high' | 'low' | 'close' } | null = null
+
+  // Only check bars within reasonable X proximity — for now check all visible
+  for (const bar of data) {
+    for (const field of ['open', 'high', 'low', 'close'] as const) {
+      const price = bar[field]
+      const y = priceToY(price)
+      const dist = Math.abs(y - targetY)
+      if (dist < bestDist) {
+        bestDist = dist
+        best = { price, y, type: field }
+      }
+    }
+  }
+
+  return best
+}
+
+/**
+ * Snap an angle (in radians) to the nearest cardinal or diagonal angle.
+ * Snaps to 0°, 30°, 45°, 60°, 90°, 120°, 135°, 150°, 180° etc.
+ * Returns null if no snap within threshold.
+ */
+export function snapAngle(angleRad: number, thresholdDeg = 5): number | null {
+  const angleDeg = (angleRad * 180) / Math.PI
+  const snapTargets = [0, 30, 45, 60, 90, 120, 135, 150, 180]
+
+  // Normalize to [0, 180)
+  let normalized = angleDeg % 180
+  if (normalized < 0) normalized += 180
+
+  for (const target of snapTargets) {
+    const diff = Math.abs(normalized - target)
+    const wrappedDiff = Math.min(diff, 180 - diff)
+    if (wrappedDiff <= thresholdDeg) {
+      // Preserve quadrant
+      const quadrant = Math.round(angleDeg / 180) * 180
+      return ((quadrant > 0 ? target : -target) * Math.PI) / 180
+    }
+  }
+
+  return null
+}

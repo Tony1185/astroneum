@@ -57,11 +57,11 @@ interface ChartEntry {
 
 interface GridDef { cols: number; rows: number }
 
-function getGrid (count: MultiChartCount): GridDef {
+function getGrid(count: MultiChartCount): GridDef {
   switch (count) {
-    case 2:  return { cols: 2, rows: 1 }
-    case 4:  return { cols: 2, rows: 2 }
-    case 8:  return { cols: 4, rows: 2 }
+    case 2: return { cols: 2, rows: 1 }
+    case 4: return { cols: 2, rows: 2 }
+    case 8: return { cols: 4, rows: 2 }
     case 16: return { cols: 4, rows: 4 }
     default: return { cols: 2, rows: 1 }
   }
@@ -76,7 +76,7 @@ interface PersistedLayout {
   slots: MultiChartSlot[]
 }
 
-function saveLayout (key: string, data: PersistedLayout): void {
+function saveLayout(key: string, data: PersistedLayout): void {
   try {
     localStorage.setItem(key, JSON.stringify(data))
   } catch {
@@ -84,7 +84,7 @@ function saveLayout (key: string, data: PersistedLayout): void {
   }
 }
 
-function loadLayout (key: string): PersistedLayout | null {
+function loadLayout(key: string): PersistedLayout | null {
   try {
     const raw = localStorage.getItem(key)
     return raw ? (JSON.parse(raw) as PersistedLayout) : null
@@ -124,7 +124,7 @@ export default class MultiChartLayout {
   private _activeIndex = 0
   private _wrapperEl: HTMLDivElement | null = null
 
-  constructor (options: MultiChartLayoutOptions) {
+  constructor(options: MultiChartLayoutOptions) {
     this._options = options
     this._count = options.count ?? 2
     this._storageKey = options.storageKey !== undefined ? options.storageKey : 'astroneum-multi-layout'
@@ -162,7 +162,7 @@ export default class MultiChartLayout {
   // Private
   // -------------------------------------------------------------------------
 
-  private _render (): void {
+  private _render(): void {
     // Clean up any existing charts
     this._destroy()
 
@@ -225,11 +225,34 @@ export default class MultiChartLayout {
       this._charts.push({ container: cellEl, instance: chartHandle, root })
     }
 
+    // Wire crosshair sync: when any chart's crosshair moves, propagate to all
+    // others at the same timestamp so they show synchronized crosshairs.
+    if (this._syncCrosshair && this._charts.length > 1) {
+      for (let i = 0; i < this._charts.length; i++) {
+        const chart = this._charts[i].instance
+        chart.onCrosshairMove((data: unknown) => {
+          if (data === null) {
+            // Clear crosshair on all other charts too
+            for (let j = 0; j < this._charts.length; j++) {
+              if (j === i) continue
+              this._charts[j].instance.setCrosshair(null)
+            }
+            return
+          }
+          // Propagate to all other charts
+          for (let j = 0; j < this._charts.length; j++) {
+            if (j === i) continue
+            this._charts[j].instance.setCrosshair(data)
+          }
+        })
+      }
+    }
+
     this._container.innerHTML = ''
     this._container.appendChild(wrapper)
   }
 
-  private _setActive (index: number): void {
+  private _setActive(index: number): void {
     const prev = this._charts[this._activeIndex]
     if (prev) {
       prev.container.style.outline = ''
@@ -241,7 +264,7 @@ export default class MultiChartLayout {
     }
   }
 
-  private _destroy (): void {
+  private _destroy(): void {
     for (const { root } of this._charts) {
       root.unmount()
     }
@@ -252,7 +275,7 @@ export default class MultiChartLayout {
     }
   }
 
-  private _persist (): void {
+  private _persist(): void {
     if (!this._storageKey) return
     saveLayout(this._storageKey, { count: this._count, slots: this._slots })
   }
@@ -262,7 +285,7 @@ export default class MultiChartLayout {
   // -------------------------------------------------------------------------
 
   /** Change the layout grid (2 | 4 | 8 | 16). Re-renders all charts. */
-  setCount (count: MultiChartCount): void {
+  setCount(count: MultiChartCount): void {
     this._count = count
     // Resize slots array
     const defaultSlot: MultiChartSlot = { symbol: this._options.symbol, period: this._options.period }
@@ -276,34 +299,34 @@ export default class MultiChartLayout {
   }
 
   /** Get the count of charts. */
-  getCount (): MultiChartCount {
+  getCount(): MultiChartCount {
     return this._count
   }
 
   /** Get the chart instance at a given index. */
-  getChart (index: number): AstroneumHandle | undefined {
+  getChart(index: number): AstroneumHandle | undefined {
     return this._charts[index]?.instance
   }
 
   /** Get all chart instances. */
-  getAllCharts (): AstroneumHandle[] {
+  getAllCharts(): AstroneumHandle[] {
     return this._charts.map(c => c.instance)
   }
 
   /** Get the index of the currently active (focused) chart. */
-  getActiveIndex (): number {
+  getActiveIndex(): number {
     return this._activeIndex
   }
 
   /** Get the currently active chart instance. */
-  getActiveChart (): AstroneumHandle | undefined {
+  getActiveChart(): AstroneumHandle | undefined {
     return this._charts[this._activeIndex]?.instance
   }
 
   /**
    * Set the symbol for a specific chart slot (or all slots if syncSymbolPeriod is on).
    */
-  setSymbol (symbol: SymbolInfo, index?: number): void {
+  setSymbol(symbol: SymbolInfo, index?: number): void {
     const targets = this._syncSymbolPeriod
       ? this._charts.map((_, i) => i)
       : [index ?? this._activeIndex]
@@ -321,7 +344,7 @@ export default class MultiChartLayout {
   /**
    * Set the period for a specific chart slot (or all slots if syncSymbolPeriod is on).
    */
-  setPeriod (period: Period, index?: number): void {
+  setPeriod(period: Period, index?: number): void {
     const targets = this._syncSymbolPeriod
       ? this._charts.map((_, i) => i)
       : [index ?? this._activeIndex]
@@ -337,26 +360,26 @@ export default class MultiChartLayout {
   }
 
   /** Set theme for all charts. */
-  setTheme (theme: string): void {
+  setTheme(theme: string): void {
     for (const { instance } of this._charts) {
       instance.setTheme(theme)
     }
   }
 
   /** Set locale for all charts. */
-  setLocale (locale: string): void {
+  setLocale(locale: string): void {
     for (const { instance } of this._charts) {
       instance.setLocale(locale)
     }
   }
 
   /** Save current layout to localStorage immediately. */
-  saveLayout (): void {
+  saveLayout(): void {
     this._persist()
   }
 
   /** Destroy all charts and clean up the DOM. */
-  destroy (): void {
+  destroy(): void {
     this._destroy()
   }
 }

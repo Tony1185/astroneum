@@ -4,7 +4,7 @@ import { describe, it } from 'node:test'
 import type { Indicator } from '../engine/component/Indicator'
 import { getIndicatorClass } from '../engine/extension/indicator/index'
 import { createIndicatorTemplateFromPlugin, mountChartPlugins, registerIndicatorPlugin } from '../plugin'
-import type { CandleData, Chart, ChartPlugin } from '../types'
+import type { CandleData, Chart, ChartPlugin, IndicatorPlugin } from '../types'
 
 const CANDLES: CandleData[] = [
   { timestamp: 1, open: 10, high: 13, low: 9, close: 12, volume: 100 },
@@ -16,8 +16,8 @@ describe('createIndicatorTemplateFromPlugin', () => {
   it('normalizes scalar plugin output to engine rows', async () => {
     const template = createIndicatorTemplateFromPlugin({
       name: 'UNIT_SCALAR_PLUGIN',
-      calc (dataList) {
-        return dataList.map(candle => candle.close - candle.open)
+      calc(dataList: CandleData[]): number[] {
+        return dataList.map((candle: CandleData) => candle.close - candle.open)
       }
     })
 
@@ -38,8 +38,8 @@ describe('createIndicatorTemplateFromPlugin', () => {
     const name = `UNIT_REG_PLUGIN_${Date.now()}`
     registerIndicatorPlugin({
       name,
-      calc (dataList) {
-        return dataList.map(candle => ({ spread: candle.high - candle.low }))
+      calc(dataList: CandleData[]): Array<{ spread: number }> {
+        return dataList.map((candle: CandleData) => ({ spread: candle.high - candle.low }))
       }
     })
 
@@ -58,12 +58,12 @@ describe('createIndicatorTemplateFromPlugin', () => {
         indicators: [
           {
             name,
-            calc (dataList) {
-              return dataList.map(candle => candle.close)
+            calc(dataList: CandleData[]): number[] {
+              return dataList.map((candle: CandleData) => candle.close)
             }
-          }
+          } as IndicatorPlugin<number>
         ],
-        onInit (context) {
+        onInit(context) {
           initCalled = context.chart === chart
           return () => {
             cleanupCalled = true
@@ -86,11 +86,11 @@ describe('createIndicatorTemplateFromPlugin', () => {
 
     const template = createIndicatorTemplateFromPlugin<number>({
       name,
-      calc (dataList, calcParams) {
+      calc(dataList: CandleData[], calcParams: number[]): number[] {
         const offset = Number(calcParams[0] ?? 0)
-        return dataList.map(candle => candle.close + offset)
+        return dataList.map((candle: CandleData) => candle.close + offset)
       },
-      render2D (_ctx, output) {
+      render2D(_ctx: CanvasRenderingContext2D, output: number[]): void {
         renderedOutputs.push([...output])
       }
     })
@@ -113,7 +113,7 @@ describe('createIndicatorTemplateFromPlugin', () => {
     const drawArgs = {
       ctx: {} as CanvasRenderingContext2D,
       chart: {
-        getDataList: () => CANDLES,
+        getDataList: (): CandleData[] => CANDLES,
         getVisibleRange: () => ({ realFrom: 0, realTo: CANDLES.length })
       } as unknown as Chart,
       xAxis: {} as never,

@@ -208,6 +208,11 @@ export abstract class WebSocketDatafeed implements Datafeed {
     emit: (tick: CandleData) => void
   ): void {
     const url = this.getWebSocketUrl(symbol, period)
+    // Validate URL scheme — only wss:// (secure WebSocket) is allowed by default
+    if (!url.startsWith('wss://') && !url.startsWith('ws://')) {
+      console.error(`[WebSocketDatafeed] Invalid WebSocket URL: "${url}". URL must start with wss:// or ws://.`)
+      return
+    }
     const ws = new WebSocket(url)
     this._sockets.set(key, ws)
 

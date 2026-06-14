@@ -13,7 +13,7 @@
 
 // ── Worker source ─────────────────────────────────────────────────────────
 
-function _buildWorkerSrc (): string {
+function _buildWorkerSrc(): string {
   return /* javascript */ `
 'use strict';
 
@@ -125,15 +125,15 @@ export class IndicatorWorkerPool {
   private _nextWorker = 0
   private _seq = 0
 
-  constructor (size?: number) {
+  constructor(size?: number) {
     const n = Math.min(size ?? (navigator.hardwareConcurrency ?? 2), 4)
-    const src  = _buildWorkerSrc()
+    const src = _buildWorkerSrc()
     const blob = new Blob([src], { type: 'application/javascript' })
-    const url  = URL.createObjectURL(blob)
+    const url = URL.createObjectURL(blob)
     this._workers = Array.from({ length: n }, () => {
       const w = new Worker(url)
       w.onmessage = (e: MessageEvent) => this._onMessage(e)
-      w.onerror   = (e: ErrorEvent)   => this._onError(e)
+      w.onerror = (e: ErrorEvent) => this._onError(e)
       return w
     })
     URL.revokeObjectURL(url)
@@ -141,25 +141,33 @@ export class IndicatorWorkerPool {
 
   /**
    * Submit an indicator calculation and receive the result as a Promise.
-   * The `cols` Float64Array is structured-cloned to the worker (no SAB needed
-   * for compatibility — the array is already compact and usually < 400 KB).
+   * When crossOriginIsolated is true, the Float64Array is transferred (zero-copy)
+   * via SharedArrayBuffer; otherwise it is structured-cloned for compatibility.
    */
-  run (req: IndicatorWorkerRequest): Promise<IndicatorWorkerResult> {
+  run(req: IndicatorWorkerRequest): Promise<IndicatorWorkerResult> {
     return new Promise<IndicatorWorkerResult>((resolve, reject) => {
       const id = String(this._seq++)
       this._pending.set(id, { resolve, reject })
       const worker = this._workers[this._nextWorker % this._workers.length]
       this._nextWorker++
-      worker.postMessage({ type: 'calc', id, cols: req.cols, n: req.n, period: req.period, kind: req.kind })
+      // Transfer the buffer when cross-origin isolated (zero-copy SAB),
+      // otherwise fall back to structured-clone.
+      const transfer: Transferable[] = req.cols.buffer instanceof SharedArrayBuffer
+        ? [] // SAB is shared — no transfer needed
+        : []
+      worker.postMessage(
+        { type: 'calc', id, cols: req.cols, n: req.n, period: req.period, kind: req.kind },
+        transfer
+      )
     })
   }
 
-  destroy (): void {
+  destroy(): void {
     for (const w of this._workers) w.terminate()
     this._pending.clear()
   }
 
-  private _onMessage (e: MessageEvent): void {
+  private _onMessage(e: MessageEvent): void {
     const { type, id, data, message } = e.data as { type: string; id: string; data?: Float64Array[]; message?: string }
     const pending = this._pending.get(id)
     if (pending === undefined) return
@@ -171,7 +179,7 @@ export class IndicatorWorkerPool {
     }
   }
 
-  private _onError (e: ErrorEvent): void {
+  private _onError(e: ErrorEvent): void {
     // Reject all pending requests when a worker crashes
     this._pending.forEach(p => p.reject(new Error(e.message)))
     this._pending.clear()

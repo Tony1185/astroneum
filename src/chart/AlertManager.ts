@@ -56,22 +56,52 @@ export interface AlertCheckInput {
 
 export type AlertTriggeredCallback = (alert: Alert, price: number) => void
 
+/**
+ * Validate a webhook URL — block non-https schemes and private/reserved hosts
+ * to prevent SSRF / data exfiltration.
+ */
+function isValidWebhookUrl(raw: string): boolean {
+  try {
+    const url = new URL(raw)
+    if (url.protocol !== 'https:') return false
+    const host = url.hostname.toLowerCase()
+    if (host === 'localhost' || host === '127.0.0.1' || host === '[::1]') return false
+    // Block private IPv4 ranges
+    if (/^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|169\.254\.|127\.)/.test(host)) return false
+    return true
+  } catch {
+    return false
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Persistence helpers
 // ---------------------------------------------------------------------------
 
 const STORAGE_KEY = 'astroneum-alerts'
 
-function loadFromStorage (): Alert[] {
+function loadFromStorage(): Alert[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? (JSON.parse(raw) as Alert[]) : []
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    // Runtime schema validation — reject corrupted/malicious data
+    return parsed.filter((a: unknown) => {
+      if (a === null || typeof a !== 'object') return false
+      const obj = a as Record<string, unknown>
+      return typeof obj.id === 'string' &&
+        typeof obj.symbol === 'string' &&
+        typeof obj.price === 'number' &&
+        typeof obj.status === 'string' &&
+        typeof obj.createdAt === 'string'
+    }) as Alert[]
   } catch {
     return []
   }
 }
 
-function saveToStorage (alerts: Alert[]): void {
+function saveToStorage(alerts: Alert[]): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(alerts))
   } catch {
@@ -83,7 +113,7 @@ function saveToStorage (alerts: Alert[]): void {
 // AudioContext beep (no external asset needed)
 // ---------------------------------------------------------------------------
 
-function playBeep (): void {
+function playBeep(): void {
   try {
     const ctx = new AudioContext()
     const osc = ctx.createOscillator()
@@ -112,12 +142,13 @@ export class AlertManager {
   /** Last known price per symbol — used for crosses_above/crosses_below */
   private _lastPrice: Map<string, number> = new Map()
   private _listeners: AlertTriggeredCallback[] = []
+  private _savePending = false
 
-  private constructor () {
+  private constructor() {
     this._alerts = loadFromStorage()
   }
 
-  static getInstance (): AlertManager {
+  static getInstance(): AlertManager {
     if (!AlertManager._instance) {
       AlertManager._instance = new AlertManager()
     }
@@ -129,7 +160,7 @@ export class AlertManager {
   // -------------------------------------------------------------------------
 
   /** Add a new alert and return its id. */
-  add (create: AlertCreate): string {
+  add(create: AlertCreate): string {
     const alert: Alert = {
       ...create,
       id: `alert_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -145,7 +176,7 @@ export class AlertManager {
   }
 
   /** Update an existing alert by id. Returns false if not found. */
-  update (id: string, patch: Partial<Omit<Alert, 'id' | 'createdAt'>>): boolean {
+  update(id: string, patch: Partial<Omit<Alert, 'id' | 'createdAt'>>): boolean {
     const idx = this._alerts.findIndex(a => a.id === id)
     if (idx === -1) return false
     this._alerts[idx] = { ...this._alerts[idx], ...patch }
@@ -154,7 +185,7 @@ export class AlertManager {
   }
 
   /** Delete an alert. Returns false if not found. */
-  delete (id: string): boolean {
+  delete(id: string): boolean {
     const prev = this._alerts.length
     this._alerts = this._alerts.filter(a => a.id !== id)
     if (this._alerts.length !== prev) {
@@ -165,17 +196,17 @@ export class AlertManager {
   }
 
   /** Dismiss a triggered alert (keeps it in history with status='dismissed'). */
-  dismiss (id: string): boolean {
+  dismiss(id: string): boolean {
     return this.update(id, { status: 'dismissed' })
   }
 
   /** Re-activate a previously triggered/dismissed alert. */
-  reactivate (id: string): boolean {
+  reactivate(id: string): boolean {
     return this.update(id, { status: 'active', triggeredAt: undefined })
   }
 
   /** Delete all alerts for a symbol (or all if no symbol given). */
-  clear (symbol?: string): void {
+  clear(symbol?: string): void {
     this._alerts = symbol ? this._alerts.filter(a => a.symbol !== symbol) : []
     saveToStorage(this._alerts)
   }
@@ -184,11 +215,11 @@ export class AlertManager {
   // Queries
   // -------------------------------------------------------------------------
 
-  getAll (): readonly Alert[] { return this._alerts }
-  getActive (): Alert[] { return this._alerts.filter(a => a.status === 'active') }
-  getForSymbol (symbol: string): Alert[] { return this._alerts.filter(a => a.symbol === symbol) }
-  getActiveForSymbol (symbol: string): Alert[] { return this._alerts.filter(a => a.symbol === symbol && a.status === 'active') }
-  getHistory (): Alert[] { return this._alerts.filter(a => a.status !== 'active') }
+  getAll(): readonly Alert[] { return this._alerts }
+  getActive(): Alert[] { return this._alerts.filter(a => a.status === 'active') }
+  getForSymbol(symbol: string): Alert[] { return this._alerts.filter(a => a.symbol === symbol) }
+  getActiveForSymbol(symbol: string): Alert[] { return this._alerts.filter(a => a.symbol === symbol && a.status === 'active') }
+  getHistory(): Alert[] { return this._alerts.filter(a => a.status !== 'active') }
 
   // -------------------------------------------------------------------------
   // Evaluation
@@ -198,7 +229,7 @@ export class AlertManager {
    * Call this on every price tick or bar close.
    * Fires registered callbacks for any triggered alerts.
    */
-  check (input: AlertCheckInput): void {
+  check(input: AlertCheckInput): void {
     const { symbol, price, timestamp } = input
     const last = this._lastPrice.get(symbol)
     this._lastPrice.set(symbol, price)
@@ -234,14 +265,25 @@ export class AlertManager {
       this._fire(alert, price)
     }
 
-    saveToStorage(this._alerts)
+    // Debounced persist — only write to localStorage at most once per second
+    // during active tick streams to avoid blocking the main thread.
+    this._schedulePersist()
+  }
+
+  private _schedulePersist(): void {
+    if (this._savePending) return
+    this._savePending = true
+    setTimeout(() => {
+      this._savePending = false
+      saveToStorage(this._alerts)
+    }, 1000)
   }
 
   // -------------------------------------------------------------------------
   // Notifications
   // -------------------------------------------------------------------------
 
-  private _fire (alert: Alert, price: number): void {
+  private _fire(alert: Alert, price: number): void {
     // Audio
     if (alert.soundEnabled) { playBeep() }
 
@@ -262,8 +304,8 @@ export class AlertManager {
       }
     }
 
-    // Webhook
-    if (alert.webhookUrl) {
+    // Webhook — validate URL to prevent SSRF / data exfiltration
+    if (alert.webhookUrl && isValidWebhookUrl(alert.webhookUrl)) {
       const payload = {
         id: alert.id,
         symbol: alert.symbol,
@@ -287,13 +329,13 @@ export class AlertManager {
   }
 
   /** Register a callback invoked whenever an alert triggers. */
-  onTriggered (cb: AlertTriggeredCallback): () => void {
+  onTriggered(cb: AlertTriggeredCallback): () => void {
     this._listeners.push(cb)
     return () => { this._listeners = this._listeners.filter(l => l !== cb) }
   }
 
   /** Request browser notification permission proactively. */
-  async requestNotificationPermission (): Promise<NotificationPermission> {
+  async requestNotificationPermission(): Promise<NotificationPermission> {
     if (!('Notification' in window)) return 'denied'
     if (Notification.permission !== 'default') return Notification.permission
     return Notification.requestPermission()

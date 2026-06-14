@@ -35,32 +35,32 @@
 
 import type { CandleData } from '../common/Data'
 
-const BAR_STRIDE   = 40  // bytes per bar record
-const CTRL_BYTES   = 8   // head + tail i32 counters
-const HEAD_OFFSET  = 0   // i32 index of head counter
-const TAIL_OFFSET  = 1   // i32 index of tail counter
+const BAR_STRIDE = 40  // bytes per bar record
+const CTRL_BYTES = 8   // head + tail i32 counters
+const HEAD_OFFSET = 0   // i32 index of head counter
+const TAIL_OFFSET = 1   // i32 index of tail counter
 
 // ── Data read/write helpers ───────────────────────────────────────────────
 
-function _writeBar (view: DataView, byteOffset: number, bar: CandleData): void {
+function _writeBar(view: DataView, byteOffset: number, bar: CandleData): void {
   // Split i64 timestamp into two u32 words (LE)
   const ts = bar.timestamp
-  view.setUint32(byteOffset,     ts >>> 0, true)
+  view.setUint32(byteOffset, ts >>> 0, true)
   view.setUint32(byteOffset + 4, Math.floor(ts / 0x100000000) >>> 0, true)
-  view.setFloat64(byteOffset +  8, bar.open,  true)
-  view.setFloat64(byteOffset + 16, bar.high,  true)
-  view.setFloat64(byteOffset + 24, bar.low,   true)
+  view.setFloat64(byteOffset + 8, bar.open, true)
+  view.setFloat64(byteOffset + 16, bar.high, true)
+  view.setFloat64(byteOffset + 24, bar.low, true)
   view.setFloat64(byteOffset + 32, bar.close, true)
 }
 
-function _readBar (view: DataView, byteOffset: number): CandleData {
-  const tsLo = view.getUint32(byteOffset,     true)
+function _readBar(view: DataView, byteOffset: number): CandleData {
+  const tsLo = view.getUint32(byteOffset, true)
   const tsHi = view.getUint32(byteOffset + 4, true)
   return {
     timestamp: tsLo + tsHi * 0x100000000,
-    open:  view.getFloat64(byteOffset +  8, true),
-    high:  view.getFloat64(byteOffset + 16, true),
-    low:   view.getFloat64(byteOffset + 24, true),
+    open: view.getFloat64(byteOffset + 8, true),
+    high: view.getFloat64(byteOffset + 16, true),
+    low: view.getFloat64(byteOffset + 24, true),
     close: view.getFloat64(byteOffset + 32, true)
   }
 }
@@ -72,9 +72,9 @@ export class SabRingBuffer {
   private readonly _data: DataView     // view over data region
   private readonly _capacity: number   // slot count
 
-  private constructor (sab: SharedArrayBuffer, capacity: number) {
-    this._ctrl     = new Int32Array(sab, 0, 2)
-    this._data     = new DataView(sab, CTRL_BYTES)
+  private constructor(sab: SharedArrayBuffer, capacity: number) {
+    this._ctrl = new Int32Array(sab, 0, 2)
+    this._data = new DataView(sab, CTRL_BYTES)
     this._capacity = capacity
   }
 
@@ -85,7 +85,9 @@ export class SabRingBuffer {
    * returns a `SabRingBuffer`.  Otherwise returns a `FallbackRingBuffer` with
    * an identical API.
    */
-  static create (capacity: number): SabRingBuffer | FallbackRingBuffer {
+  static create(capacity: number): SabRingBuffer | FallbackRingBuffer {
+    // Only use SAB when crossOriginIsolated — required by browser Spectre mitigations.
+    // Falls back gracefully to plain-array ring buffer otherwise (secure by default).
     const isolated = (globalThis as { crossOriginIsolated?: boolean }).crossOriginIsolated === true
     if (typeof SharedArrayBuffer !== 'undefined' && isolated) {
       const byteLen = CTRL_BYTES + capacity * BAR_STRIDE
@@ -95,7 +97,7 @@ export class SabRingBuffer {
   }
 
   /** Producer: append a bar.  Returns false when the ring is full. */
-  push (bar: CandleData): boolean {
+  push(bar: CandleData): boolean {
     const head = Atomics.load(this._ctrl, HEAD_OFFSET)
     const tail = Atomics.load(this._ctrl, TAIL_OFFSET)
     if (head - tail >= this._capacity) return false   // full
@@ -108,24 +110,24 @@ export class SabRingBuffer {
   }
 
   /** Consumer: read and remove the oldest bar.  Returns null when empty. */
-  pop (): CandleData | null {
+  pop(): CandleData | null {
     const tail = Atomics.load(this._ctrl, TAIL_OFFSET)
     const head = Atomics.load(this._ctrl, HEAD_OFFSET)
     if (tail >= head) return null   // empty
 
     const slot = tail % this._capacity
-    const bar  = _readBar(this._data, slot * BAR_STRIDE)
+    const bar = _readBar(this._data, slot * BAR_STRIDE)
     Atomics.store(this._ctrl, TAIL_OFFSET, tail + 1)
     return bar
   }
 
   /** Available bars to read. */
-  get size (): number {
+  get size(): number {
     return Atomics.load(this._ctrl, HEAD_OFFSET) - Atomics.load(this._ctrl, TAIL_OFFSET)
   }
 
   /** Maximum bar capacity. */
-  get capacity (): number { return this._capacity }
+  get capacity(): number { return this._capacity }
 }
 
 // ── Plain-array fallback ──────────────────────────────────────────────────
@@ -136,25 +138,25 @@ export class FallbackRingBuffer {
   private _tail = 0
   private readonly _capacity: number
 
-  constructor (capacity: number) {
+  constructor(capacity: number) {
     this._capacity = capacity
     this._buf = new Array(capacity)
   }
 
-  push (bar: CandleData): boolean {
+  push(bar: CandleData): boolean {
     if (this._head - this._tail >= this._capacity) return false
     this._buf[this._head % this._capacity] = { ...bar }
     this._head++
     return true
   }
 
-  pop (): CandleData | null {
+  pop(): CandleData | null {
     if (this._tail >= this._head) return null
     const bar = this._buf[this._tail % this._capacity]
     this._tail++
     return bar
   }
 
-  get size (): number { return this._head - this._tail }
-  get capacity (): number { return this._capacity }
+  get size(): number { return this._head - this._tail }
+  get capacity(): number { return this._capacity }
 }

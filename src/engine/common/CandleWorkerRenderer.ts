@@ -28,14 +28,8 @@
 // ---------------------------------------------------------------------------
 
 import { WebGLCanvas } from './WebGLCanvas'
-import {
-  BYTES_PER_BAR,
-  COLOR_BYTE_OFF,
-  VERTS_PER_BAR,
-  VERT_SRC,
-  FRAG_SRC,
-  parseColor,
-} from './candleShaders'
+import { getOrCreateColor, packColor as _packColorUtil } from './candleShaders'
+import { BYTES_PER_BAR, COLOR_BYTE_OFF, VERTS_PER_BAR, VERT_SRC, FRAG_SRC } from './candleShaders'
 import type { BarRenderData } from './CandleWebGLRenderer'
 import { getPixelRatio } from './utils/canvas'
 
@@ -43,7 +37,7 @@ import { getPixelRatio } from './utils/canvas'
 // Worker source — built once at module load, reused per renderer instance.
 // JSON.stringify embeds the shader strings safely (handles newlines, quotes…).
 // ---------------------------------------------------------------------------
-function _buildWorkerSrc (): string {
+function _buildWorkerSrc(): string {
   return `'use strict';
 const BYTES_PER_BAR  = ${BYTES_PER_BAR};
 const COLOR_BYTE_OFF = ${COLOR_BYTE_OFF};
@@ -245,7 +239,7 @@ self.onmessage = function(e) {
 }
 
 let _workerSrcCache: string | null = null
-function _getWorkerSrc (): string {
+function _getWorkerSrc(): string {
   if (_workerSrcCache === null) _workerSrcCache = _buildWorkerSrc()
   return _workerSrcCache
 }
@@ -272,12 +266,12 @@ export class CandleWorkerRenderer {
   private _capacity = 0
   private _stagingBuf: ArrayBuffer = new ArrayBuffer(0)
   private _stagingF32: Float32Array = new Float32Array(0)
-  private _stagingU8: Uint8Array  = new Uint8Array(0)
+  private _stagingU8: Uint8Array = new Uint8Array(0)
 
   // Single-bar buffer for updateLastBar (zero-GC live-tick path)
   private readonly _singleBarBuf = new ArrayBuffer(BYTES_PER_BAR)
   private readonly _singleBarF32 = new Float32Array(this._singleBarBuf)
-  private readonly _singleBarU8  = new Uint8Array(this._singleBarBuf)
+  private readonly _singleBarU8 = new Uint8Array(this._singleBarBuf)
 
   // Colour cache
   private readonly _colorCache = new Map<string, readonly [number, number, number, number]>()
@@ -288,24 +282,24 @@ export class CandleWorkerRenderer {
   private readonly _lodBuf: BarRenderData[] = []
 
   // Dirty-flag fingerprints (same semantics as CandleWebGLRenderer)
-  private _fingerprintBarCount      = -1
-  private _fingerprintFirstX        = 0
-  private _fingerprintLastX         = 0
-  private _fingerprintLastClose     = 0
+  private _fingerprintBarCount = -1
+  private _fingerprintFirstX = 0
+  private _fingerprintLastX = 0
+  private _fingerprintLastClose = 0
   private _fingerprintLastBodyColor = ''
-  private _fingerprintFirstOpen     = NaN
-  private _fingerprintFirstClose    = NaN
-  private _fingerprintBarStep       = 0
-  private _panOffsetCss             = 0
+  private _fingerprintFirstOpen = NaN
+  private _fingerprintFirstClose = NaN
+  private _fingerprintBarStep = 0
+  private _panOffsetCss = 0
 
   // Incremental draw dirty tracking
-  private _barCount        = 0
-  private _vboVersion      = 0
-  private _drawnVersion    = -1
-  private _lastPriceFrom   = NaN
-  private _lastPriceRange  = NaN
+  private _barCount = 0
+  private _vboVersion = 0
+  private _drawnVersion = -1
+  private _lastPriceFrom = NaN
+  private _lastPriceRange = NaN
   private _lastBarHalfWidth = NaN
-  private _lastRenderMode  = -1
+  private _lastRenderMode = -1
   private _lastOhlcHalfSize = NaN
 
   // Physical pixel dimensions (updated in resize)
@@ -313,13 +307,13 @@ export class CandleWorkerRenderer {
   private _physH = 0
   private _pixelRatio = 1
 
-  constructor (container: HTMLElement) {
+  constructor(container: HTMLElement) {
     // Create the placeholder canvas element (CSS styling only after transfer)
     const canvas = document.createElement('canvas')
-    canvas.style.position    = 'absolute'
-    canvas.style.top         = '0'
-    canvas.style.left        = '0'
-    canvas.style.zIndex      = '1'   // below Canvas2D layers (z-index 2)
+    canvas.style.position = 'absolute'
+    canvas.style.top = '0'
+    canvas.style.left = '0'
+    canvas.style.zIndex = '1'   // below Canvas2D layers (z-index 2)
     canvas.style.pointerEvents = 'none'
     container.appendChild(canvas)
     this._canvas = canvas
@@ -329,19 +323,19 @@ export class CandleWorkerRenderer {
     // fall back to the structured-clone path for oversized datasets.
     const SAB_MAX_BARS = 65536
     if (typeof SharedArrayBuffer !== 'undefined' && (globalThis as { crossOriginIsolated?: boolean }).crossOriginIsolated === true) {
-      this._sab   = new SharedArrayBuffer(SAB_MAX_BARS * BYTES_PER_BAR)
+      this._sab = new SharedArrayBuffer(SAB_MAX_BARS * BYTES_PER_BAR)
       this._sabF32 = new Float32Array(this._sab)
-      this._sabU8  = new Uint8Array(this._sab)
+      this._sabU8 = new Uint8Array(this._sab)
     } else {
-      this._sab    = null
+      this._sab = null
       this._sabF32 = null
-      this._sabU8  = null
+      this._sabU8 = null
     }
 
     // Spawn the worker from a Blob URL — safe for library bundles (no import path)
-    const blob    = new Blob([_getWorkerSrc()], { type: 'application/javascript' })
+    const blob = new Blob([_getWorkerSrc()], { type: 'application/javascript' })
     const blobUrl = URL.createObjectURL(blob)
-    const worker  = new Worker(blobUrl)
+    const worker = new Worker(blobUrl)
     URL.revokeObjectURL(blobUrl)   // worker is already alive; safe to revoke
     this._worker = worker
 
@@ -368,27 +362,19 @@ export class CandleWorkerRenderer {
   // Colour helpers (mirror of CandleWebGLRenderer private methods)
   // ---------------------------------------------------------------------------
 
-  private _parseColorCached (color: string): readonly [number, number, number, number] {
-    let c = this._colorCache.get(color)
-    if (c === undefined) {
-      c = parseColor(color)
-      this._colorCache.set(color, c)
-    }
-    return c
+  private _parseColorCached(color: string): readonly [number, number, number, number] {
+    return getOrCreateColor(color, this._colorCache)
   }
 
-  private _packColor (
+  private _packColor(
     rgba: readonly [number, number, number, number],
     u8: Uint8Array,
     byteOffset: number
   ): void {
-    u8[byteOffset]     = (rgba[0] * 255 + 0.5) | 0
-    u8[byteOffset + 1] = (rgba[1] * 255 + 0.5) | 0
-    u8[byteOffset + 2] = (rgba[2] * 255 + 0.5) | 0
-    u8[byteOffset + 3] = (rgba[3] * 255 + 0.5) | 0
+    _packColorUtil(rgba, u8, byteOffset)
   }
 
-  private _writeBarIntoViews (
+  private _writeBarIntoViews(
     bar: BarRenderData,
     f32: Float32Array,
     u8: Uint8Array,
@@ -400,8 +386,8 @@ export class CandleWorkerRenderer {
     f32[f32Base + 2] = bar.high
     f32[f32Base + 3] = bar.low
     f32[f32Base + 4] = bar.close
-    this._packColor(this._parseColorCached(bar.wickColor),   u8, byteBase + COLOR_BYTE_OFF)
-    this._packColor(this._parseColorCached(bar.bodyColor),   u8, byteBase + COLOR_BYTE_OFF + 4)
+    this._packColor(this._parseColorCached(bar.wickColor), u8, byteBase + COLOR_BYTE_OFF)
+    this._packColor(this._parseColorCached(bar.bodyColor), u8, byteBase + COLOR_BYTE_OFF + 4)
     this._packColor(this._parseColorCached(bar.borderColor), u8, byteBase + COLOR_BYTE_OFF + 8)
   }
 
@@ -409,32 +395,32 @@ export class CandleWorkerRenderer {
   // LOD aggregation (identical to CandleWebGLRenderer._applyLod)
   // ---------------------------------------------------------------------------
 
-  private _applyLod (rawBars: BarRenderData[], targetCount: number): void {
+  private _applyLod(rawBars: BarRenderData[], targetCount: number): void {
     while (this._lodBuf.length < targetCount) {
       this._lodBuf.push({ centerX: 0, open: 0, high: 0, low: 0, close: 0, wickColor: '', bodyColor: '', borderColor: '' })
     }
-    const n    = rawBars.length
+    const n = rawBars.length
     const step = n / targetCount
     for (let i = 0; i < targetCount; i++) {
       const startIdx = Math.floor(i * step)
-      const endIdx   = Math.min(Math.floor((i + 1) * step) - 1, n - 1)
-      const first    = rawBars[startIdx]
-      const last     = rawBars[endIdx]
+      const endIdx = Math.min(Math.floor((i + 1) * step) - 1, n - 1)
+      const first = rawBars[startIdx]
+      const last = rawBars[endIdx]
       let high = first.high
-      let low  = first.low
+      let low = first.low
       for (let j = startIdx + 1; j <= endIdx; j++) {
         const b = rawBars[j]
         if (b.high > high) high = b.high
-        if (b.low  < low)  low  = b.low
+        if (b.low < low) low = b.low
       }
-      const out       = this._lodBuf[i]
-      out.centerX     = first.centerX
-      out.open        = first.open
-      out.high        = high
-      out.low         = low
-      out.close       = last.close
-      out.wickColor   = last.wickColor
-      out.bodyColor   = last.bodyColor
+      const out = this._lodBuf[i]
+      out.centerX = first.centerX
+      out.open = first.open
+      out.high = high
+      out.low = low
+      out.close = last.close
+      out.wickColor = last.wickColor
+      out.bodyColor = last.bodyColor
       out.borderColor = last.borderColor
     }
   }
@@ -443,13 +429,13 @@ export class CandleWorkerRenderer {
   // Capacity management
   // ---------------------------------------------------------------------------
 
-  private _ensureCapacity (count: number): void {
+  private _ensureCapacity(count: number): void {
     if (count <= this._capacity) return
     const newCap = Math.max(count, this._capacity * 2, 512)
     this._stagingBuf = new ArrayBuffer(newCap * BYTES_PER_BAR)
     this._stagingF32 = new Float32Array(this._stagingBuf)
-    this._stagingU8  = new Uint8Array(this._stagingBuf)
-    this._capacity   = newCap
+    this._stagingU8 = new Uint8Array(this._stagingBuf)
+    this._capacity = newCap
     // Worker needs to know the new capacity so it can call bufferData.
     // This is handled implicitly: worker reallocates when count > capacity in 'upload'.
   }
@@ -459,7 +445,7 @@ export class CandleWorkerRenderer {
   // Instead of calling gl.bufferSubData, posts 'upload' to the worker.
   // ---------------------------------------------------------------------------
 
-  setData (rawBars: BarRenderData[]): void {
+  setData(rawBars: BarRenderData[]): void {
     if (!this._workerReady) return   // worker not yet initialised
 
     const LOD_THRESHOLD = 1.5
@@ -481,13 +467,13 @@ export class CandleWorkerRenderer {
     }
 
     const firstBar = bars[0]
-    const lastBar  = bars[visibleBarCount - 1]
+    const lastBar = bars[visibleBarCount - 1]
     if (
-      visibleBarCount               === this._fingerprintBarCount    &&
-      firstBar.centerX              === this._fingerprintFirstX      &&
-      lastBar.centerX               === this._fingerprintLastX       &&
-      lastBar.close                 === this._fingerprintLastClose   &&
-      lastBar.bodyColor             === this._fingerprintLastBodyColor
+      visibleBarCount === this._fingerprintBarCount &&
+      firstBar.centerX === this._fingerprintFirstX &&
+      lastBar.centerX === this._fingerprintLastX &&
+      lastBar.close === this._fingerprintLastClose &&
+      lastBar.bodyColor === this._fingerprintLastBodyColor
     ) return
 
     // Pan-offset fast path
@@ -495,35 +481,35 @@ export class CandleWorkerRenderer {
       ? bars[1].centerX - firstBar.centerX
       : this._fingerprintBarStep
     if (
-      visibleBarCount               === this._fingerprintBarCount     &&
-      lastBar.close                 === this._fingerprintLastClose    &&
-      lastBar.bodyColor             === this._fingerprintLastBodyColor &&
-      firstBar.open                 === this._fingerprintFirstOpen    &&
-      firstBar.close                === this._fingerprintFirstClose   &&
-      currentBarStep                === this._fingerprintBarStep
+      visibleBarCount === this._fingerprintBarCount &&
+      lastBar.close === this._fingerprintLastClose &&
+      lastBar.bodyColor === this._fingerprintLastBodyColor &&
+      firstBar.open === this._fingerprintFirstOpen &&
+      firstBar.close === this._fingerprintFirstClose &&
+      currentBarStep === this._fingerprintBarStep
     ) {
-      this._panOffsetCss       += firstBar.centerX - this._fingerprintFirstX
-      this._fingerprintFirstX   = firstBar.centerX
-      this._fingerprintLastX    = lastBar.centerX
+      this._panOffsetCss += firstBar.centerX - this._fingerprintFirstX
+      this._fingerprintFirstX = firstBar.centerX
+      this._fingerprintLastX = lastBar.centerX
       this._vboVersion++
       return
     }
 
     // Full re-upload
-    this._panOffsetCss             = 0
-    this._fingerprintBarCount      = visibleBarCount
-    this._fingerprintFirstX        = firstBar.centerX
-    this._fingerprintLastX         = lastBar.centerX
-    this._fingerprintLastClose     = lastBar.close
+    this._panOffsetCss = 0
+    this._fingerprintBarCount = visibleBarCount
+    this._fingerprintFirstX = firstBar.centerX
+    this._fingerprintLastX = lastBar.centerX
+    this._fingerprintLastClose = lastBar.close
     this._fingerprintLastBodyColor = lastBar.bodyColor
-    this._fingerprintFirstOpen     = firstBar.open
-    this._fingerprintFirstClose    = firstBar.close
-    this._fingerprintBarStep       = currentBarStep
+    this._fingerprintFirstOpen = firstBar.open
+    this._fingerprintFirstClose = firstBar.close
+    this._fingerprintBarStep = currentBarStep
 
     this._ensureCapacity(visibleBarCount)
 
     const f32 = this._stagingF32
-    const u8  = this._stagingU8
+    const u8 = this._stagingU8
     for (let i = 0; i < visibleBarCount; i++) {
       this._writeBarIntoViews(bars[i], f32, u8, i << 3, i * BYTES_PER_BAR)
     }
@@ -544,7 +530,7 @@ export class CandleWorkerRenderer {
     this._vboVersion++
   }
 
-  updateLastBar (bar: BarRenderData): void {
+  updateLastBar(bar: BarRenderData): void {
     if (this._barCount === 0 || this._lodActive || !this._workerReady) return
     this._fingerprintLastClose = bar.close
     this._writeBarIntoViews(bar, this._singleBarF32, this._singleBarU8, 0, 0)
@@ -558,19 +544,19 @@ export class CandleWorkerRenderer {
   // resize
   // ---------------------------------------------------------------------------
 
-  resize (width: number, height: number): void {
+  resize(width: number, height: number): void {
     this._canvasWidthCss = width
     const pixelRatio = getPixelRatio(this._canvas)
-    const physW = Math.round(width  * pixelRatio)
+    const physW = Math.round(width * pixelRatio)
     const physH = Math.round(height * pixelRatio)
 
     // Update CSS geometry (worker controls physical dimensions)
-    this._canvas.style.width  = `${width}px`
+    this._canvas.style.width = `${width}px`
     this._canvas.style.height = `${height}px`
 
     if (physW === this._physW && physH === this._physH && pixelRatio === this._pixelRatio) return
-    this._physW      = physW
-    this._physH      = physH
+    this._physW = physW
+    this._physH = physH
     this._pixelRatio = pixelRatio
 
     if (this._workerReady) {
@@ -583,7 +569,7 @@ export class CandleWorkerRenderer {
   // draw — posts uniforms to worker; worker calls drawArraysInstanced
   // ---------------------------------------------------------------------------
 
-  draw (
+  draw(
     priceFrom: number,
     priceRange: number,
     barHalfWidth: number,
@@ -593,33 +579,33 @@ export class CandleWorkerRenderer {
     if (this._barCount === 0 || !this._workerReady) return
 
     if (
-      this._vboVersion     === this._drawnVersion    &&
-      priceFrom            === this._lastPriceFrom   &&
-      priceRange           === this._lastPriceRange  &&
-      barHalfWidth         === this._lastBarHalfWidth &&
-      renderMode           === this._lastRenderMode  &&
-      ohlcHalfSize         === this._lastOhlcHalfSize
+      this._vboVersion === this._drawnVersion &&
+      priceFrom === this._lastPriceFrom &&
+      priceRange === this._lastPriceRange &&
+      barHalfWidth === this._lastBarHalfWidth &&
+      renderMode === this._lastRenderMode &&
+      ohlcHalfSize === this._lastOhlcHalfSize
     ) return
 
-    this._drawnVersion     = this._vboVersion
-    this._lastPriceFrom    = priceFrom
-    this._lastPriceRange   = priceRange
+    this._drawnVersion = this._vboVersion
+    this._lastPriceFrom = priceFrom
+    this._lastPriceRange = priceRange
     this._lastBarHalfWidth = barHalfWidth
-    this._lastRenderMode   = renderMode
+    this._lastRenderMode = renderMode
     this._lastOhlcHalfSize = ohlcHalfSize
 
     this._worker.postMessage({
-      type        : 'draw',
-      barCount    : this._barCount,
+      type: 'draw',
+      barCount: this._barCount,
       priceFrom,
       priceRange,
       barHalfWidth,
       renderMode,
       ohlcHalfSize,
-      panOffset   : this._panOffsetCss,
-      physW       : this._physW,
-      physH       : this._physH,
-      pixelRatio  : this._pixelRatio,
+      panOffset: this._panOffsetCss,
+      physW: this._physW,
+      physH: this._physH,
+      pixelRatio: this._pixelRatio,
     })
   }
 
@@ -627,7 +613,7 @@ export class CandleWorkerRenderer {
   // Cleanup
   // ---------------------------------------------------------------------------
 
-  destroy (): void {
+  destroy(): void {
     if (this._workerReady) {
       this._worker.postMessage({ type: 'destroy' })
     } else {
@@ -640,7 +626,7 @@ export class CandleWorkerRenderer {
   // Static capability check
   // ---------------------------------------------------------------------------
 
-  static isSupported (): boolean {
+  static isSupported(): boolean {
     return (
       WebGLCanvas.isSupported() &&
       typeof OffscreenCanvas !== 'undefined' &&
@@ -654,7 +640,7 @@ export class CandleWorkerRenderer {
 // ---------------------------------------------------------------------------
 const _workerCache = new WeakMap<object, CandleWorkerRenderer>()
 
-export function getOrCreateWorkerRenderer (
+export function getOrCreateWorkerRenderer(
   widgetKey: object,
   container: HTMLElement
 ): CandleWorkerRenderer | null {
@@ -671,11 +657,11 @@ export function getOrCreateWorkerRenderer (
   return r
 }
 
-export function getWorkerRenderer (widgetKey: object): CandleWorkerRenderer | null {
+export function getWorkerRenderer(widgetKey: object): CandleWorkerRenderer | null {
   return _workerCache.get(widgetKey) ?? null
 }
 
-export function destroyWorkerRenderer (widgetKey: object): void {
+export function destroyWorkerRenderer(widgetKey: object): void {
   const r = _workerCache.get(widgetKey)
   if (r !== undefined) {
     r.destroy()

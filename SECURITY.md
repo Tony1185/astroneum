@@ -55,3 +55,15 @@ Once a fix is available, we will:
 3. Credit the reporter unless anonymity is requested.
 
 Thank you for helping keep Astroneum users safe.
+
+## Maintainer Notes
+
+- The `main` branch should require pull request review before merge (branch
+  protection). The auto-version-bump CI workflow publishes to npm on every
+  push to `main` — an unreviewed merge from an untrusted contributor would
+  automatically ship to the public registry.
+- CI runs `pnpm audit --audit-level moderate` on every build. Review audit
+  output periodically to catch known CVEs in the dependency tree.
+- The `.gitignore` includes `.env` — never commit API keys or secrets. If
+  a secret was ever committed, rotate it immediately and purge from git
+  history with `git filter-repo` or `BFG Repo-Cleaner`.

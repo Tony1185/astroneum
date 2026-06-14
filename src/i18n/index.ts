@@ -45,7 +45,7 @@ const inflight: Record<string, Promise<LocaleMap | null>> = {}
  * Register a locale dictionary explicitly. Use this to ship your own
  * translations or to override a built-in locale at runtime.
  */
-export function load (key: string, ls: LocaleMap): void {
+export function load(key: string, ls: LocaleMap): void {
   locales[key] = ls
 }
 
@@ -60,7 +60,7 @@ export function load (key: string, ls: LocaleMap): void {
  * chartRef.current?.setLocale('ja-JP')
  * ```
  */
-export function loadLocale (key: string): Promise<LocaleMap | null> {
+export function loadLocale(key: string): Promise<LocaleMap | null> {
   const cached = locales[key]
   if (cached) return Promise.resolve(cached)
   if (key in inflight) return inflight[key]
@@ -82,5 +82,8 @@ export const BUILTIN_LOCALES: ReadonlyArray<string> = [
 ]
 
 export default (key: string, locale: string): string => {
-  return (locales[locale]?.[key as LocaleKey] ?? locales['en-US']?.[key as LocaleKey] ?? key)
+  const raw = (locales[locale]?.[key as LocaleKey] ?? locales['en-US']?.[key as LocaleKey] ?? key)
+  // Strip HTML tags to prevent XSS via locale injection.
+  // Consumers that need rich text should use the raw locale map directly.
+  return raw.replace(/<[^>]*>/g, '')
 }

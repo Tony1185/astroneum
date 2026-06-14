@@ -1,6 +1,6 @@
 import { getPixelRatio } from './utils/canvas'
 import { WebGLCanvas } from './WebGLCanvas'
-import { BYTES_PER_BAR, COLOR_BYTE_OFF, VERTS_PER_BAR, VERT_SRC, FRAG_SRC, parseColor } from './candleShaders'
+import { BYTES_PER_BAR, COLOR_BYTE_OFF, VERTS_PER_BAR, VERT_SRC, FRAG_SRC, getOrCreateColor, packColor as _packColorUtil } from './candleShaders'
 
 // ---------------------------------------------------------------------------
 // Minimal local type for EXT_disjoint_timer_query_webgl2 (WebGL2 variant).
@@ -23,7 +23,7 @@ interface GPUTimerEXT {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function compileShader (gl: WebGL2RenderingContext, type: number, src: string): WebGLShader {
+function compileShader(gl: WebGL2RenderingContext, type: number, src: string): WebGLShader {
   const shader = gl.createShader(type)!
   gl.shaderSource(shader, src)
   gl.compileShader(shader)
@@ -35,7 +35,7 @@ function compileShader (gl: WebGL2RenderingContext, type: number, src: string): 
   return shader
 }
 
-function createProgram (gl: WebGL2RenderingContext): WebGLProgram {
+function createProgram(gl: WebGL2RenderingContext): WebGLProgram {
   const vert = compileShader(gl, gl.VERTEX_SHADER, VERT_SRC)
   const frag = compileShader(gl, gl.FRAGMENT_SHADER, FRAG_SRC)
   const prog = gl.createProgram()!
@@ -94,13 +94,13 @@ export class CandleWebGLRenderer {
   //  (symbol change / history load). Avoids new Float32Array() allocations.
   private _stagingBuf: ArrayBuffer = new ArrayBuffer(512 * BYTES_PER_BAR)
   private _stagingF32: Float32Array = new Float32Array(this._stagingBuf)
-  private _stagingU8:  Uint8Array   = new Uint8Array(this._stagingBuf)
+  private _stagingU8: Uint8Array = new Uint8Array(this._stagingBuf)
 
   //  _singleBarBuf is fixed-size — NEVER reallocated after construction.
   //  updateLastBar() uses it exclusively → zero GC on the tick hot path.
   private readonly _singleBarBuf = new ArrayBuffer(BYTES_PER_BAR)
   private readonly _singleBarF32 = new Float32Array(this._singleBarBuf)
-  private readonly _singleBarU8  = new Uint8Array(this._singleBarBuf)
+  private readonly _singleBarU8 = new Uint8Array(this._singleBarBuf)
 
   //  Color cache: charts typically use ≤6 distinct CSS color strings
   //  (bull/bear × wick/body/border). Cache avoids repeated parseColor() calls.
@@ -138,12 +138,12 @@ export class CandleWebGLRenderer {
   //  on the next call, if both the version AND all params match, the entire
   //  GL pipeline (clear + draw) is skipped — O(1) fast path for any update
   //  that does not touch price data or viewport (e.g. style-only rebuilds).
-  private _vboVersion    = 0
-  private _drawnVersion  = -1
-  private _lastPriceFrom    = NaN
-  private _lastPriceRange   = NaN
+  private _vboVersion = 0
+  private _drawnVersion = -1
+  private _lastPriceFrom = NaN
+  private _lastPriceRange = NaN
   private _lastBarHalfWidth = NaN
-  private _lastRenderMode   = -1
+  private _lastRenderMode = -1
   private _lastOhlcHalfSize = NaN
 
   // ── LOD (Level of Detail) ─────────────────────────────────────────────────
@@ -156,9 +156,9 @@ export class CandleWebGLRenderer {
   //  new visible range falls within the stored overscan, just update
   //  _drawStartOffset and _panOffsetCss (O(1)) without touching the VBO.
   private _vboFirstDataIdx = -1    // dataIndex of VBO[0] bar
-  private _vboLastDataIdx  = -1    // dataIndex of VBO[_barCount-1] bar
-  private _vboBar0X        = 0     // CSS pixel X of VBO[0] bar at last full upload
-  private _vboBarStep      = 0     // CSS pixel bar spacing at last full upload
+  private _vboLastDataIdx = -1    // dataIndex of VBO[_barCount-1] bar
+  private _vboBar0X = 0     // CSS pixel X of VBO[0] bar at last full upload
+  private _vboBarStep = 0     // CSS pixel bar spacing at last full upload
   private _drawStartOffset = 0     // VBO instance offset (skip overscan prefix)
   private _visibleBarCount = 0     // number of visible bars to draw
   private _lastDrawStartOffset = -1  // last value used to rebind attribs
@@ -176,7 +176,7 @@ export class CandleWebGLRenderer {
   // object which causes an INVALID_OPERATION WebGL error.
   private _timerQueryActive = false
 
-  constructor (container: HTMLElement) {
+  constructor(container: HTMLElement) {
     const canvas = document.createElement('canvas')
     canvas.style.position = 'absolute'
     canvas.style.top = '0'
@@ -205,14 +205,14 @@ export class CandleWebGLRenderer {
     gl.useProgram(this._program)
 
     // Cache uniform locations
-    this._uPriceFrom    = gl.getUniformLocation(this._program, 'u_priceFrom')!
-    this._uPriceRange   = gl.getUniformLocation(this._program, 'u_priceRange')!
-    this._uResolution   = gl.getUniformLocation(this._program, 'u_resolution')!
-    this._uPixelRatio   = gl.getUniformLocation(this._program, 'u_pixelRatio')!
-    this._uRenderMode   = gl.getUniformLocation(this._program, 'u_renderMode')!
+    this._uPriceFrom = gl.getUniformLocation(this._program, 'u_priceFrom')!
+    this._uPriceRange = gl.getUniformLocation(this._program, 'u_priceRange')!
+    this._uResolution = gl.getUniformLocation(this._program, 'u_resolution')!
+    this._uPixelRatio = gl.getUniformLocation(this._program, 'u_pixelRatio')!
+    this._uRenderMode = gl.getUniformLocation(this._program, 'u_renderMode')!
     this._uOhlcHalfSize = gl.getUniformLocation(this._program, 'u_ohlcHalfSize')!
     this._uBarHalfWidth = gl.getUniformLocation(this._program, 'u_barHalfWidth')!
-    this._uPanOffset    = gl.getUniformLocation(this._program, 'u_panOffset')!
+    this._uPanOffset = gl.getUniformLocation(this._program, 'u_panOffset')!
 
     this._vao = gl.createVertexArray()!
     gl.bindVertexArray(this._vao)
@@ -227,7 +227,7 @@ export class CandleWebGLRenderer {
     if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
       const timerExt = gl.getExtension('EXT_disjoint_timer_query_webgl2') as GPUTimerEXT | null
       if (timerExt !== null) {
-        this._timerExt  = timerExt
+        this._timerExt = timerExt
         this._timerQuery = gl.createQuery()
       }
     }
@@ -237,24 +237,16 @@ export class CandleWebGLRenderer {
   // Colour helpers
   // ---------------------------------------------------------------------------
 
-  private _parseColorCached (color: string): readonly [number, number, number, number] {
-    let cachedColor = this._colorCache.get(color)
-    if (cachedColor === undefined) {
-      cachedColor = parseColor(color)
-      this._colorCache.set(color, cachedColor)
-    }
-    return cachedColor
+  private _parseColorCached(color: string): readonly [number, number, number, number] {
+    return getOrCreateColor(color, this._colorCache)
   }
 
-  private _packColor (
+  private _packColor(
     rgba: readonly [number, number, number, number],
     u8: Uint8Array,
     byteOffset: number
   ): void {
-    u8[byteOffset]     = (rgba[0] * 255 + 0.5) | 0
-    u8[byteOffset + 1] = (rgba[1] * 255 + 0.5) | 0
-    u8[byteOffset + 2] = (rgba[2] * 255 + 0.5) | 0
-    u8[byteOffset + 3] = (rgba[3] * 255 + 0.5) | 0
+    _packColorUtil(rgba, u8, byteOffset)
   }
 
   /**
@@ -262,7 +254,7 @@ export class CandleWebGLRenderer {
    * @param f32Base  float32 index of the bar's first float field
    * @param byteBase byte offset of the bar's start in the ArrayBuffer
    */
-  private _writeBarIntoViews (
+  private _writeBarIntoViews(
     bar: BarRenderData,
     f32: Float32Array,
     u8: Uint8Array,
@@ -277,8 +269,8 @@ export class CandleWebGLRenderer {
     f32[f32Base + 2] = bar.high
     f32[f32Base + 3] = bar.low
     f32[f32Base + 4] = bar.close
-    this._packColor(this._parseColorCached(bar.wickColor),   u8, byteBase + COLOR_BYTE_OFF)
-    this._packColor(this._parseColorCached(bar.bodyColor),   u8, byteBase + COLOR_BYTE_OFF + 4)
+    this._packColor(this._parseColorCached(bar.wickColor), u8, byteBase + COLOR_BYTE_OFF)
+    this._packColor(this._parseColorCached(bar.bodyColor), u8, byteBase + COLOR_BYTE_OFF + 4)
     this._packColor(this._parseColorCached(bar.borderColor), u8, byteBase + COLOR_BYTE_OFF + 8)
   }
 
@@ -286,7 +278,7 @@ export class CandleWebGLRenderer {
   // Attribute bindings — packed layout (Float32 price fields + UByte color fields)
   // ---------------------------------------------------------------------------
 
-  private _setupAttribs (gl: WebGL2RenderingContext): void {
+  private _setupAttribs(gl: WebGL2RenderingContext): void {
     this._rebindAttribsWithOffset(gl, 0)
   }
 
@@ -295,8 +287,8 @@ export class CandleWebGLRenderer {
    * Called during construction (offset = 0) and in draw() when _drawStartOffset
    * changes (overscan fast path) — updates the VAO's captured state.
    */
-  private _rebindAttribsWithOffset (gl: WebGL2RenderingContext, baseOffset: number): void {
-    const prog   = this._program
+  private _rebindAttribsWithOffset(gl: WebGL2RenderingContext, baseOffset: number): void {
+    const prog = this._program
     const stride = BYTES_PER_BAR
 
     const bindF32 = (name: string, fieldOffset: number): void => {
@@ -316,13 +308,13 @@ export class CandleWebGLRenderer {
       gl.vertexAttribDivisor(loc, 1)
     }
 
-    bindF32('a_centerX',       0)
-    bindF32('a_open',          4)
-    bindF32('a_high',          8)
-    bindF32('a_low',          12)
-    bindF32('a_close',        16)
-    bindU8Color('a_wickColor',   20)
-    bindU8Color('a_bodyColor',   24)
+    bindF32('a_centerX', 0)
+    bindF32('a_open', 4)
+    bindF32('a_high', 8)
+    bindF32('a_low', 12)
+    bindF32('a_close', 16)
+    bindU8Color('a_wickColor', 20)
+    bindU8Color('a_bodyColor', 24)
     bindU8Color('a_borderColor', 28)
   }
 
@@ -330,19 +322,19 @@ export class CandleWebGLRenderer {
   // Resize
   // ---------------------------------------------------------------------------
 
-  resize (width: number, height: number): void {
+  resize(width: number, height: number): void {
     this._canvasWidthCss = width  // keep LOD threshold in sync with CSS layout
     const pixelRatio = getPixelRatio(this._canvas)
-    const newCanvasWidth = Math.round(width  * pixelRatio)
+    const newCanvasWidth = Math.round(width * pixelRatio)
     const newCanvasHeight = Math.round(height * pixelRatio)
     // Assigning canvas.width/height always resets the WebGL context (even for
     // same value in older browsers).  Skip the reset when dimensions are stable
     // to prevent the GPU texture reallocation that causes a visible blink on
     // every live-tick redraw.
     if (this._canvas.width === newCanvasWidth && this._canvas.height === newCanvasHeight) return
-    this._canvas.style.width  = `${width}px`
+    this._canvas.style.width = `${width}px`
     this._canvas.style.height = `${height}px`
-    this._canvas.width  = newCanvasWidth
+    this._canvas.width = newCanvasWidth
     this._canvas.height = newCanvasHeight
     this._vboVersion++  // canvas contents reset by dimension change — force redraw
   }
@@ -361,32 +353,32 @@ export class CandleWebGLRenderer {
    *   colors  = last raw bar's colors    (reflects net close-vs-open direction)
    * `_lodBuf` grows as needed but never shrinks — zero GC once steady state.
    */
-  private _applyLod (rawBars: BarRenderData[], targetCount: number): void {
+  private _applyLod(rawBars: BarRenderData[], targetCount: number): void {
     while (this._lodBuf.length < targetCount) {
       this._lodBuf.push({ centerX: 0, open: 0, high: 0, low: 0, close: 0, wickColor: '', bodyColor: '', borderColor: '' })
     }
-    const n    = rawBars.length
+    const n = rawBars.length
     const step = n / targetCount
     for (let i = 0; i < targetCount; i++) {
       const startIdx = Math.floor(i * step)
-      const endIdx   = Math.min(Math.floor((i + 1) * step) - 1, n - 1)
-      const first    = rawBars[startIdx]
-      const last     = rawBars[endIdx]
+      const endIdx = Math.min(Math.floor((i + 1) * step) - 1, n - 1)
+      const first = rawBars[startIdx]
+      const last = rawBars[endIdx]
       let high = first.high
-      let low  = first.low
+      let low = first.low
       for (let j = startIdx + 1; j <= endIdx; j++) {
         const b = rawBars[j]
         if (b.high > high) high = b.high
-        if (b.low  < low)  low  = b.low
+        if (b.low < low) low = b.low
       }
-      const out       = this._lodBuf[i]
-      out.centerX     = first.centerX
-      out.open        = first.open
-      out.high        = high
-      out.low         = low
-      out.close       = last.close
-      out.wickColor   = last.wickColor
-      out.bodyColor   = last.bodyColor
+      const out = this._lodBuf[i]
+      out.centerX = first.centerX
+      out.open = first.open
+      out.high = high
+      out.low = low
+      out.close = last.close
+      out.wickColor = last.wickColor
+      out.bodyColor = last.bodyColor
       out.borderColor = last.borderColor
     }
   }
@@ -395,13 +387,13 @@ export class CandleWebGLRenderer {
   // VBO management
   // ---------------------------------------------------------------------------
 
-  private _ensureCapacity (count: number): void {
+  private _ensureCapacity(count: number): void {
     if (count <= this._capacity) return
     const newCap = Math.max(count, this._capacity * 2, 512)
     // Regrow the CPU staging buffer in lock-step with the GPU VBO
     this._stagingBuf = new ArrayBuffer(newCap * BYTES_PER_BAR)
     this._stagingF32 = new Float32Array(this._stagingBuf)
-    this._stagingU8  = new Uint8Array(this._stagingBuf)
+    this._stagingU8 = new Uint8Array(this._stagingBuf)
     const gl = this._gl
     gl.bindBuffer(gl.ARRAY_BUFFER, this._vbo)
     gl.bufferData(gl.ARRAY_BUFFER, newCap * BYTES_PER_BAR, gl.DYNAMIC_DRAW)
@@ -428,7 +420,7 @@ export class CandleWebGLRenderer {
    * data-index range, updates _drawStartOffset and _panOffsetCss without any
    * VBO upload — O(1) even when new bars scroll into view from the buffer.
    */
-  setData (rawBars: BarRenderData[], visibleOffset = 0, visibleCount = rawBars.length): void {
+  setData(rawBars: BarRenderData[], visibleOffset = 0, visibleCount = rawBars.length): void {
     // ── Overscan fast path (Priority 15) ─────────────────────────────────────
     // When the caller provides dataIndex on each bar and the new visible range
     // falls entirely within the VBO's previously-uploaded data range, skip the
@@ -444,12 +436,12 @@ export class CandleWebGLRenderer {
       this._vboBarStep !== 0
     ) {
       const firstVis = rawBars[visibleOffset]
-      const lastVis  = rawBars[visibleOffset + visibleCount - 1]
+      const lastVis = rawBars[visibleOffset + visibleCount - 1]
       if (
         firstVis.dataIndex !== undefined &&
-        lastVis.dataIndex  !== undefined &&
+        lastVis.dataIndex !== undefined &&
         firstVis.dataIndex >= this._vboFirstDataIdx &&
-        lastVis.dataIndex  <= this._vboLastDataIdx  &&
+        lastVis.dataIndex <= this._vboLastDataIdx &&
         // Ensure bar step matches (guards against zoom change)
         (visibleCount < 2 || (rawBars[visibleOffset + 1].centerX - firstVis.centerX) === this._vboBarStep)
       ) {
@@ -458,16 +450,16 @@ export class CandleWebGLRenderer {
         // stored VBO X + _panOffsetCss (shader adds the offset at draw time).
         // storedX = _vboBar0X + newDrawStart * _vboBarStep
         const storedX = this._vboBar0X + newDrawStart * this._vboBarStep
-        this._panOffsetCss  = firstVis.centerX - storedX
+        this._panOffsetCss = firstVis.centerX - storedX
         this._drawStartOffset = newDrawStart
         this._visibleBarCount = visibleCount
         // Update fingerprints so the pure-pan path works on subsequent frames
         this._fingerprintBarCount = visibleCount
         this._fingerprintFirstX = firstVis.centerX
-        this._fingerprintLastX  = lastVis.centerX
+        this._fingerprintLastX = lastVis.centerX
         this._fingerprintLastClose = lastVis.close
         this._fingerprintLastBodyColor = lastVis.bodyColor
-        this._fingerprintFirstOpen  = firstVis.open
+        this._fingerprintFirstOpen = firstVis.open
         this._fingerprintFirstClose = firstVis.close
         this._fingerprintBarStep = visibleCount >= 2
           ? rawBars[visibleOffset + 1].centerX - firstVis.centerX
@@ -515,13 +507,13 @@ export class CandleWebGLRenderer {
 
     // O(1) fingerprint — skip the O(N) staging + bufferSubData when unchanged
     const firstBar = bars[fpStart]
-    const lastBar  = bars[fpStart + fpCount - 1]
+    const lastBar = bars[fpStart + fpCount - 1]
     if (
-      fpCount                       === this._fingerprintBarCount    &&
-      firstBar.centerX              === this._fingerprintFirstX      &&
-      lastBar.centerX               === this._fingerprintLastX       &&
-      lastBar.close                 === this._fingerprintLastClose   &&
-      lastBar.bodyColor             === this._fingerprintLastBodyColor
+      fpCount === this._fingerprintBarCount &&
+      firstBar.centerX === this._fingerprintFirstX &&
+      lastBar.centerX === this._fingerprintLastX &&
+      lastBar.close === this._fingerprintLastClose &&
+      lastBar.bodyColor === this._fingerprintLastBodyColor
     ) return
 
     // ── Pan-offset fast path (Priority 5) ───────────────────────────────
@@ -534,12 +526,12 @@ export class CandleWebGLRenderer {
       ? bars[fpStart + 1].centerX - firstBar.centerX
       : this._fingerprintBarStep
     if (
-      fpCount                       === this._fingerprintBarCount     &&
-      lastBar.close                 === this._fingerprintLastClose    &&
-      lastBar.bodyColor             === this._fingerprintLastBodyColor &&
-      firstBar.open                 === this._fingerprintFirstOpen    &&
-      firstBar.close                === this._fingerprintFirstClose   &&
-      currentBarStep                === this._fingerprintBarStep
+      fpCount === this._fingerprintBarCount &&
+      lastBar.close === this._fingerprintLastClose &&
+      lastBar.bodyColor === this._fingerprintLastBodyColor &&
+      firstBar.open === this._fingerprintFirstOpen &&
+      firstBar.close === this._fingerprintFirstClose &&
+      currentBarStep === this._fingerprintBarStep
     ) {
       // Pure pan — update accumulated offset + x-fingerprint, skip VBO write
       this._panOffsetCss += firstBar.centerX - this._fingerprintFirstX
@@ -567,9 +559,9 @@ export class CandleWebGLRenderer {
     // detect future setData() calls that fall within this VBO's range.
     // When no dataIndex is provided (non-overscan caller), disable the fast path.
     this._vboFirstDataIdx = bars[0].dataIndex ?? -1
-    this._vboLastDataIdx  = bars[totalBarCount - 1].dataIndex ?? -1
-    this._vboBar0X        = bars[0].centerX   // X at upload time (panOffset=0)
-    this._vboBarStep      = currentBarStep
+    this._vboLastDataIdx = bars[totalBarCount - 1].dataIndex ?? -1
+    this._vboBar0X = bars[0].centerX   // X at upload time (panOffset=0)
+    this._vboBarStep = currentBarStep
     // Draw parameters for the visible window within the overscan array.
     // When caller passes visibleOffset=0 (default), these equal the full range.
     // For LOD paths _drawStartOffset is always 0 (whole aggregated array is visible).
@@ -579,7 +571,7 @@ export class CandleWebGLRenderer {
     this._ensureCapacity(totalBarCount)
 
     const f32 = this._stagingF32
-    const u8  = this._stagingU8
+    const u8 = this._stagingU8
     for (let i = 0; i < totalBarCount; i++) {
       // BYTES_PER_BAR = 32 → f32Base = i * 8  (32 / sizeof(float32) = 8)
       this._writeBarIntoViews(bars[i], f32, u8, i << 3, i * BYTES_PER_BAR)
@@ -597,7 +589,7 @@ export class CandleWebGLRenderer {
    * Keeps the dirty-flag fingerprint in sync so the next setData() call
    * correctly skips the full re-upload.
    */
-  updateLastBar (bar: BarRenderData): void {
+  updateLastBar(bar: BarRenderData): void {
     if (this._barCount === 0) return
     // When LOD is active the last VBO slot is an aggregated bucket whose high/low
     // come from multiple raw bars.  A single-bar partial write would corrupt it.
@@ -632,7 +624,7 @@ export class CandleWebGLRenderer {
    * @param renderMode   0 = candle (solid/stroke), 1 = ohlc
    * @param ohlcHalfSize half of ohlcSize in CSS pixels (only used when renderMode=1)
    */
-  draw (priceFrom: number, priceRange: number, barHalfWidth: number, renderMode = 0, ohlcHalfSize = 0): void {
+  draw(priceFrom: number, priceRange: number, barHalfWidth: number, renderMode = 0, ohlcHalfSize = 0): void {
     if (this._barCount === 0) return
 
     // Incremental dirty: skip the entire GL pipeline when the canvas is already
@@ -641,18 +633,18 @@ export class CandleWebGLRenderer {
     // do not touch price data (e.g. tooltip hover, indicator recalculation with
     // the same output, theme reload with unchanged colours).
     if (
-      this._vboVersion     === this._drawnVersion    &&
-      priceFrom            === this._lastPriceFrom   &&
-      priceRange           === this._lastPriceRange  &&
-      barHalfWidth         === this._lastBarHalfWidth &&
-      renderMode           === this._lastRenderMode  &&
-      ohlcHalfSize         === this._lastOhlcHalfSize
+      this._vboVersion === this._drawnVersion &&
+      priceFrom === this._lastPriceFrom &&
+      priceRange === this._lastPriceRange &&
+      barHalfWidth === this._lastBarHalfWidth &&
+      renderMode === this._lastRenderMode &&
+      ohlcHalfSize === this._lastOhlcHalfSize
     ) return
-    this._drawnVersion     = this._vboVersion
-    this._lastPriceFrom    = priceFrom
-    this._lastPriceRange   = priceRange
+    this._drawnVersion = this._vboVersion
+    this._lastPriceFrom = priceFrom
+    this._lastPriceRange = priceRange
     this._lastBarHalfWidth = barHalfWidth
-    this._lastRenderMode   = renderMode
+    this._lastRenderMode = renderMode
     this._lastOhlcHalfSize = ohlcHalfSize
 
     const gl = this._gl
@@ -691,14 +683,14 @@ export class CandleWebGLRenderer {
     gl.useProgram(this._program)
 
     // O(1) uniform updates for pan/zoom — all coordinate transforms happen on GPU
-    gl.uniform1f(this._uPriceFrom,    priceFrom)
-    gl.uniform1f(this._uPriceRange,   priceRange)
-    gl.uniform2f(this._uResolution,   canvasWidthPx, canvasHeightPx)
-    gl.uniform1f(this._uPixelRatio,   pixelRatio)
+    gl.uniform1f(this._uPriceFrom, priceFrom)
+    gl.uniform1f(this._uPriceRange, priceRange)
+    gl.uniform2f(this._uResolution, canvasWidthPx, canvasHeightPx)
+    gl.uniform1f(this._uPixelRatio, pixelRatio)
     gl.uniform1f(this._uBarHalfWidth, barHalfWidth)
-    gl.uniform1i(this._uRenderMode,   renderMode)
+    gl.uniform1i(this._uRenderMode, renderMode)
     gl.uniform1f(this._uOhlcHalfSize, ohlcHalfSize)
-    gl.uniform1f(this._uPanOffset,    this._panOffsetCss)
+    gl.uniform1f(this._uPanOffset, this._panOffsetCss)
 
     gl.bindVertexArray(this._vao)
     // Overscan: rebind attribute pointers if the draw-start offset changed.
@@ -725,7 +717,7 @@ export class CandleWebGLRenderer {
   // Cleanup
   // ---------------------------------------------------------------------------
 
-  destroy (): void {
+  destroy(): void {
     const gl = this._gl
     if (this._timerQuery !== null) gl.deleteQuery(this._timerQuery)
     gl.deleteVertexArray(this._vao)
@@ -740,7 +732,7 @@ export class CandleWebGLRenderer {
   // Static capability check
   // ---------------------------------------------------------------------------
 
-  static isSupported (): boolean {
+  static isSupported(): boolean {
     return WebGLCanvas.isSupported()
   }
 }
@@ -752,7 +744,7 @@ export class CandleWebGLRenderer {
 // ---------------------------------------------------------------------------
 const _rendererCache = new WeakMap<object, CandleWebGLRenderer>()
 
-export function getOrCreateRenderer (
+export function getOrCreateRenderer(
   widgetKey: object,
   container: HTMLElement
 ): CandleWebGLRenderer | null {
@@ -769,7 +761,7 @@ export function getOrCreateRenderer (
   return r
 }
 
-export function destroyRenderer (widgetKey: object): void {
+export function destroyRenderer(widgetKey: object): void {
   const r = _rendererCache.get(widgetKey)
   if (r !== undefined) {
     r.destroy()

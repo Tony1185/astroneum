@@ -33,10 +33,10 @@
 
 import type { CandleData } from '@/types'
 
-const MAGIC     = 0x42415253   // 'B','A','R','S'
-const VERSION   = 1
-const HDR_SIZE  = 12   // magic(4) + version(4) + count(4)
-const BAR_SIZE  = 40   // timestamp(8) + o(8) + h(8) + l(8) + c(8)
+const MAGIC = 0x42415253   // 'B','A','R','S'
+const VERSION = 1
+const HDR_SIZE = 12   // magic(4) + version(4) + count(4)
+const BAR_SIZE = 40   // timestamp(8) + o(8) + h(8) + l(8) + c(8)
 const PAD_TO_16 = 4    // pad header to 16 for 8-byte alignment of first bar
 
 export class BarsCodec {
@@ -46,15 +46,15 @@ export class BarsCodec {
    * @param bars  Source bar array.
    * @returns     Uint8Array ready to transmit.
    */
-  static encode (bars: ReadonlyArray<CandleData>): Uint8Array {
-    const n    = bars.length
+  static encode(bars: ReadonlyArray<CandleData>): Uint8Array {
+    const n = bars.length
     const size = HDR_SIZE + PAD_TO_16 + n * BAR_SIZE
-    const buf  = new ArrayBuffer(size)
+    const buf = new ArrayBuffer(size)
     const view = new DataView(buf)
 
-    view.setUint32(0, MAGIC,    true)
-    view.setUint32(4, VERSION,  true)
-    view.setUint32(8, n,        true)
+    view.setUint32(0, MAGIC, true)
+    view.setUint32(4, VERSION, true)
+    view.setUint32(8, n, true)
     // 4-byte pad (bytes 12–15) left as zero
 
     for (let i = 0; i < n; i++) {
@@ -66,12 +66,12 @@ export class BarsCodec {
       const ts = bar.timestamp
       const tsLo = ts >>> 0
       const tsHi = Math.floor(ts / 0x100000000) >>> 0
-      view.setUint32(off,     tsLo, true)
+      view.setUint32(off, tsLo, true)
       view.setUint32(off + 4, tsHi, true)
 
-      view.setFloat64(off +  8, bar.open,  true)
-      view.setFloat64(off + 16, bar.high,  true)
-      view.setFloat64(off + 24, bar.low,   true)
+      view.setFloat64(off + 8, bar.open, true)
+      view.setFloat64(off + 16, bar.high, true)
+      view.setFloat64(off + 24, bar.low, true)
       view.setFloat64(off + 32, bar.close, true)
     }
 
@@ -84,29 +84,32 @@ export class BarsCodec {
    * @param data  Received bytes.
    * @returns     Decoded bar array (empty on invalid magic/version).
    */
-  static decode (data: Uint8Array): CandleData[] {
+  static decode(data: Uint8Array): CandleData[] {
     if (data.byteLength < HDR_SIZE) return []
     const view = new DataView(data.buffer, data.byteOffset, data.byteLength)
 
-    const magic   = view.getUint32(0, true)
+    const magic = view.getUint32(0, true)
     const version = view.getUint32(4, true)
-    const n       = view.getUint32(8, true)
+    const n = view.getUint32(8, true)
 
     if (magic !== MAGIC || version !== VERSION) return []
+    // Cap to 500k bars (~20 MB) to prevent OOM on crafted input
+    const MAX_BARS = 500_000
+    if (n > MAX_BARS) return []
     if (data.byteLength < 16 + n * BAR_SIZE) return []
 
     const bars: CandleData[] = new Array(n)
     for (let i = 0; i < n; i++) {
-      const off  = 16 + i * BAR_SIZE
-      const tsLo = view.getUint32(off,     true)
+      const off = 16 + i * BAR_SIZE
+      const tsLo = view.getUint32(off, true)
       const tsHi = view.getUint32(off + 4, true)
       const timestamp = tsLo + tsHi * 0x100000000
 
       bars[i] = {
         timestamp,
-        open:  view.getFloat64(off +  8, true),
-        high:  view.getFloat64(off + 16, true),
-        low:   view.getFloat64(off + 24, true),
+        open: view.getFloat64(off + 8, true),
+        high: view.getFloat64(off + 16, true),
+        low: view.getFloat64(off + 24, true),
         close: view.getFloat64(off + 32, true)
       }
     }

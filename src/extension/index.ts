@@ -14,6 +14,7 @@ import pitchfork from './pitchfork'
 import { threeWaves, fiveWaves, eightWaves, anyWaves } from './waves'
 import abcd from './abcd'
 import xabcd from './xabcd'
+import measure from './measure'
 
 export default [
   arrow,
@@ -21,5 +22,6 @@ export default [
   fibonacciCircle, fibonacciSegment, fibonacciSpiral,
   fibonacciSpeedResistanceFan, fibonacciExtension,
   gannBox, gannFan, pitchfork,
-  threeWaves, fiveWaves, eightWaves, anyWaves, abcd, xabcd
+  threeWaves, fiveWaves, eightWaves, anyWaves, abcd, xabcd,
+  measure
 ]

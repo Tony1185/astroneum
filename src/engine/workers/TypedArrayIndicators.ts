@@ -28,12 +28,12 @@
 
 // ── Column indices for the packed bar store ──────────────────────────────
 
-export const COL_OPEN  = 0
-export const COL_HIGH  = 1
-export const COL_LOW   = 2
+export const COL_OPEN = 0
+export const COL_HIGH = 1
+export const COL_LOW = 2
 export const COL_CLOSE = 3
-export const COL_VOL   = 4
-export const NUM_COLS  = 5
+export const COL_VOL = 4
+export const NUM_COLS = 5
 
 // ── P3-B: Pack OHLCV objects into contiguous typed columns ───────────────
 
@@ -50,25 +50,32 @@ export const NUM_COLS  = 5
  * @param data  Source bar array (any object with open/high/low/close fields)
  * @returns     A `ColumnStore` wrapping the packed buffer
  */
-export function packBars (
-  data: ReadonlyArray<{ open: number; high: number; low: number; close: number; volume?: number }>
+export function packBars(
+  data: ReadonlyArray<{ open: number; high: number; low: number; close: number; volume?: number }>,
+  columns: { open?: boolean; high?: boolean; low?: boolean; close?: boolean; vol?: boolean } = {}
 ): ColumnStore {
+  const wantOpen = columns.open !== false
+  const wantHigh = columns.high !== false
+  const wantLow = columns.low !== false
+  const wantClose = columns.close !== false
+  const wantVol = columns.vol !== false
+
   const n = data.length
   const buf = new Float64Array(n * NUM_COLS)
-  const openCol  = 0
-  const highCol  = n
-  const lowCol   = n * 2
+  const openCol = 0
+  const highCol = n
+  const lowCol = n * 2
   const closeCol = n * 3
-  const volCol   = n * 4
+  const volCol = n * 4
 
   // P3-B: tight loop — only numeric ops, no property-bag overhead in hot path
   for (let i = 0; i < n; i++) {
     const d = data[i]
-    buf[openCol  + i] = d.open
-    buf[highCol  + i] = d.high
-    buf[lowCol   + i] = d.low
-    buf[closeCol + i] = d.close
-    buf[volCol   + i] = d.volume ?? 0
+    if (wantOpen) buf[openCol + i] = d.open
+    if (wantHigh) buf[highCol + i] = d.high
+    if (wantLow) buf[lowCol + i] = d.low
+    if (wantClose) buf[closeCol + i] = d.close
+    if (wantVol) buf[volCol + i] = d.volume ?? 0
   }
   return new ColumnStore(buf, n)
 }
@@ -76,20 +83,20 @@ export function packBars (
 // ── Column store accessor ─────────────────────────────────────────────────
 
 export class ColumnStore {
-  constructor (
+  constructor(
     public readonly buf: Float64Array,
     public readonly length: number
-  ) {}
+  ) { }
 
-  col (colIdx: number): Float64Array {
+  col(colIdx: number): Float64Array {
     return this.buf.subarray(colIdx * this.length, (colIdx + 1) * this.length)
   }
 
-  open  (): Float64Array { return this.col(COL_OPEN) }
-  high  (): Float64Array { return this.col(COL_HIGH) }
-  low   (): Float64Array { return this.col(COL_LOW)  }
-  close (): Float64Array { return this.col(COL_CLOSE) }
-  vol   (): Float64Array { return this.col(COL_VOL)  }
+  open(): Float64Array { return this.col(COL_OPEN) }
+  high(): Float64Array { return this.col(COL_HIGH) }
+  low(): Float64Array { return this.col(COL_LOW) }
+  close(): Float64Array { return this.col(COL_CLOSE) }
+  vol(): Float64Array { return this.col(COL_VOL) }
 }
 
 // ── Typed-Array SMA ──────────────────────────────────────────────────────
@@ -102,7 +109,7 @@ export class ColumnStore {
  * @param period SMA window size
  * @param out    Output buffer; created if not supplied or wrong length
  */
-export function sma (
+export function sma(
   src: Float64Array,
   period: number,
   out?: Float64Array
@@ -129,7 +136,7 @@ export function sma (
  * Exponential Moving Average — O(N), single-pass, no allocation on hot path
  * when `out` is supplied.
  */
-export function ema (
+export function ema(
   src: Float64Array,
   period: number,
   out?: Float64Array
@@ -158,7 +165,7 @@ export function ema (
  * Relative Strength Index — Wilder smoothing, O(N), no allocation when
  * output buffer is supplied.
  */
-export function rsi (
+export function rsi(
   close: Float64Array,
   period: number,
   out?: Float64Array
@@ -207,7 +214,7 @@ export interface BollingerResult {
  * Bollinger Bands — middle = SMA(period), upper/lower = middle ± mult×σ.
  * Uses a rolling variance formula (Welford-style) for O(N) computation.
  */
-export function bollingerBands (
+export function bollingerBands(
   src: Float64Array,
   period: number,
   mult = 2,
@@ -230,14 +237,14 @@ export function bollingerBands (
     const mean = sum / period
     const variance = sumSq / period - mean * mean
     const sigma = variance > 0 ? Math.sqrt(variance) : 0
-    mid[i]   = mean
+    mid[i] = mean
     upper[i] = mean + mult * sigma
     lower[i] = mean - mult * sigma
   }
   computeBand(period - 1)
 
   for (let i = period; i < n; i++) {
-    sum   += src[i]     - src[i - period]
+    sum += src[i] - src[i - period]
     sumSq += src[i] * src[i] - src[i - period] * src[i - period]
     computeBand(i)
   }

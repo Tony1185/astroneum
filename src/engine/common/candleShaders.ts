@@ -21,9 +21,9 @@
 //  Byte 24–27  UByte×4    bodyColor
 //  Byte 28–31  UByte×4    borderColor
 // ---------------------------------------------------------------------------
-export const BYTES_PER_BAR  = 32
+export const BYTES_PER_BAR = 32
 export const COLOR_BYTE_OFF = 20    // byte offset of first colour field per bar
-export const VERTS_PER_BAR  = 18    // (wick 0–5) + (body-outer 6–11) + (body-inner 12–17)
+export const VERTS_PER_BAR = 18    // (wick 0–5) + (body-outer 6–11) + (body-inner 12–17)
 
 // ---------------------------------------------------------------------------
 // Vertex shader
@@ -171,7 +171,7 @@ void main() { fragColor = v_color; }
 // Colour helpers — shared between main-thread and worker data-preparation paths
 // ---------------------------------------------------------------------------
 
-export function hexToRgba (hex: string): [number, number, number, number] {
+export function hexToRgba(hex: string): [number, number, number, number] {
   const hexValue = hex.replace('#', '')
   if (hexValue.length === 6 || hexValue.length === 8) {
     const r = parseInt(hexValue.slice(0, 2), 16) / 255
@@ -191,7 +191,7 @@ export function hexToRgba (hex: string): [number, number, number, number] {
 }
 
 /** Parse any CSS colour string to [r,g,b,a] in [0..1] */
-export function parseColor (color: string): [number, number, number, number] {
+export function parseColor(color: string): [number, number, number, number] {
   if (color.startsWith('#')) return hexToRgba(color)
   // rgba(...) / rgb(...)
   const m = color.match(/rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)/)
@@ -204,4 +204,29 @@ export function parseColor (color: string): [number, number, number, number] {
     ]
   }
   return [0, 0, 0, 1]
+}
+
+/** Cached colour parse — avoids repeated regex when the same colour is used across bars. */
+export function getOrCreateColor(
+  color: string,
+  cache: Map<string, readonly [number, number, number, number]>
+): readonly [number, number, number, number] {
+  let c = cache.get(color)
+  if (c === undefined) {
+    c = parseColor(color)
+    cache.set(color, c)
+  }
+  return c
+}
+
+/** Pack normalised RGBA into Uint8Array at given byte offset. Inlined at call sites. */
+export function packColor(
+  rgba: readonly [number, number, number, number],
+  u8: Uint8Array,
+  byteOffset: number
+): void {
+  u8[byteOffset] = (rgba[0] * 255 + 0.5) | 0
+  u8[byteOffset + 1] = (rgba[1] * 255 + 0.5) | 0
+  u8[byteOffset + 2] = (rgba[2] * 255 + 0.5) | 0
+  u8[byteOffset + 3] = (rgba[3] * 255 + 0.5) | 0
 }

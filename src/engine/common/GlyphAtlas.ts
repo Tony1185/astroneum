@@ -17,7 +17,7 @@ export const GLYPH_CHARSET =
  * Uses the actual device pixel ratio (min 2) so glyphs are always 1:1
  * with physical pixels on any display density.
  */
-function getRenderScale (): number {
+function getRenderScale(): number {
   return Math.max(Math.ceil(typeof window !== 'undefined' ? (window.devicePixelRatio ?? 2) : 2), 2)
 }
 
@@ -47,7 +47,7 @@ export class GlyphAtlas {
   private _texture: WebGLTexture | null = null
   private readonly _glyphs = new Map<string, GlyphMetrics>()
 
-  constructor (fontSize: number, fontFamily: string) {
+  constructor(fontSize: number, fontFamily: string) {
     this.fontSize = fontSize
     this.fontFamily = fontFamily
   }
@@ -58,7 +58,7 @@ export class GlyphAtlas {
    * Call once before use; idempotent (calling twice is a no-op if texture
    * is already allocated).
    */
-  build (gl: WebGL2RenderingContext): void {
+  build(gl: WebGL2RenderingContext): void {
     if (this._texture !== null) return
 
     const RENDER_SCALE = getRenderScale()
@@ -74,7 +74,9 @@ export class GlyphAtlas {
     const cellH = Math.ceil(renderPx * 1.5)
     const advances: number[] = chars.map(ch => tmpCtx.measureText(ch).width)
     // Uniform cell width = max advance + small margin so glyphs never bleed.
-    const maxAdv = Math.max(...advances)
+    // Use iterative loop instead of Math.max(...spread) to avoid stack overflow.
+    let maxAdv = 0
+    for (let i = 0; i < advances.length; i++) { if (advances[i] > maxAdv) maxAdv = advances[i] }
     const cellW = Math.ceil(maxAdv + renderPx * 0.2)
 
     // Grid layout: aim for a square texture.
@@ -125,14 +127,14 @@ export class GlyphAtlas {
   }
 
   /** Returns glyph metrics for `ch`, or `null` if not in the charset. */
-  getGlyph (ch: string): GlyphMetrics | null {
+  getGlyph(ch: string): GlyphMetrics | null {
     return this._glyphs.get(ch) ?? null
   }
 
-  get texture (): WebGLTexture | null { return this._texture }
+  get texture(): WebGLTexture | null { return this._texture }
 
   /** Release GPU resources. */
-  destroy (gl: WebGL2RenderingContext): void {
+  destroy(gl: WebGL2RenderingContext): void {
     if (this._texture !== null) {
       gl.deleteTexture(this._texture)
       this._texture = null

@@ -112,6 +112,18 @@ export interface AstroneumOptions {
    * ticker and current period.
    */
   ariaLabel?: string
+  /**
+   * Bar rendering style. Defaults to 'candle' (standard candlesticks).
+   * 'heikin_ashi' transforms OHLC data with the Heikin-Ashi formula
+   * before rendering — no datafeed changes required.
+   */
+  barStyle?: 'candle' | 'heikin_ashi'
+  /**
+   * Price axis scale mode. Defaults to 'linear' (absolute price).
+   * 'log' uses logarithmic scale (useful for long-term charts).
+   * 'percent' shows percentage change from the first visible bar.
+   */
+  priceScale?: 'linear' | 'log' | 'percent'
 }
 
 /**
@@ -168,6 +180,19 @@ export interface AstroneumHandle {
    * behaviour for unregistered names.
    */
   loadState(state: SerializedChartState): void
+  /**
+   * Subscribe to crosshair moves. Returns an unsubscribe function.
+   * Callback receives the crosshair data (or null when it leaves the chart).
+   * Returns a Coordinate-like object with the timestamp + price at cursor.
+   */
+  onCrosshairMove(callback: (data: unknown) => void): () => void
+  /**
+   * Programmatically set the crosshair position on this chart.
+   * Used internally by MultiChartLayout for crosshair sync.
+   */
+  setCrosshair(data: unknown): void
+  /** Lock or unlock ALL drawing overlays at once. */
+  lockAllDrawings(locked: boolean): void
 }
 
 // ---------------------------------------------------------------------------

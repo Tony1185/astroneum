@@ -62,11 +62,12 @@ function isStatusMsg(msg: PolygonWSMessage): msg is PolygonWSStatusMsg {
 }
 
 export default class DefaultDatafeed implements Datafeed {
+  readonly #apiKey: string
+
   constructor(apiKey: string) {
-    this._apiKey = apiKey
+    this.#apiKey = apiKey
   }
 
-  private readonly _apiKey: string
   private _prevSymbolMarket?: string
   private _ws?: WebSocket
   private _reconnectDelay = 1_000
@@ -85,23 +86,23 @@ export default class DefaultDatafeed implements Datafeed {
   private _prevTickClose = NaN
 
   /** Returns true when the incoming tick carries new information. */
-  private _isDeltaTick (bar: CandleData): boolean {
+  private _isDeltaTick(bar: CandleData): boolean {
     if (bar.timestamp !== this._prevTickTimestamp) return true
     // Use strict comparison — prices are already rounded via asPrice()
     return (
-      bar.open  !== this._prevTickOpen  ||
-      bar.high  !== this._prevTickHigh  ||
-      bar.low   !== this._prevTickLow   ||
+      bar.open !== this._prevTickOpen ||
+      bar.high !== this._prevTickHigh ||
+      bar.low !== this._prevTickLow ||
       bar.close !== this._prevTickClose
     )
   }
 
   /** Update the rolling reference point for delta comparison. */
-  private _updateDeltaRef (bar: CandleData): void {
+  private _updateDeltaRef(bar: CandleData): void {
     this._prevTickTimestamp = bar.timestamp
-    this._prevTickOpen  = bar.open
-    this._prevTickHigh  = bar.high
-    this._prevTickLow   = bar.low
+    this._prevTickOpen = bar.open
+    this._prevTickHigh = bar.high
+    this._prevTickLow = bar.low
     this._prevTickClose = bar.close
   }
 
@@ -125,11 +126,12 @@ export default class DefaultDatafeed implements Datafeed {
 
   async searchSymbols(search?: string): Promise<SymbolInfo[]> {
     const url = new URL('https://api.polygon.io/v3/reference/tickers')
-    url.searchParams.set('apiKey', this._apiKey)
     url.searchParams.set('active', 'true')
     url.searchParams.set('search', search ?? '')
 
-    const response = await fetch(url.toString())
+    const response = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${this.#apiKey}` }
+    })
     if (!response.ok) throw new Error(`[DefaultDatafeed] searchSymbols failed: ${response.status}`)
     const result: PolygonTickersResponse = await response.json() as PolygonTickersResponse
 
@@ -148,9 +150,10 @@ export default class DefaultDatafeed implements Datafeed {
     const url = new URL(
       `https://api.polygon.io/v2/aggs/ticker/${symbol.ticker}/range/${period.multiplier}/${period.timespan}/${from}/${to}`
     )
-    url.searchParams.set('apiKey', this._apiKey)
 
-    const response = await fetch(url.toString())
+    const response = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${this.#apiKey}` }
+    })
     if (!response.ok) throw new Error(`[DefaultDatafeed] getHistoryData failed: ${response.status}`)
     const result: PolygonAggsResponse = await response.json() as PolygonAggsResponse
 
@@ -190,11 +193,14 @@ export default class DefaultDatafeed implements Datafeed {
 
     this._ws.onopen = (): void => {
       this._reconnectDelay = 1_000
-      this._ws?.send(JSON.stringify({ action: 'auth', params: this._apiKey }))
+      this._ws?.send(JSON.stringify({ action: 'auth', params: this.#apiKey }))
     }
 
     this._ws.onmessage = (event: MessageEvent<string>): void => {
-      const messages = JSON.parse(event.data) as PolygonWSMessage[]
+      const parsed = JSON.parse(event.data)
+      // Runtime type guard — reject non-array payloads from compromised endpoints
+      if (!Array.isArray(parsed)) return
+      const messages = parsed as PolygonWSMessage[]
       for (const msg of messages) {
         if (isStatusMsg(msg)) {
           if (msg.status === 'auth_success' && this._currentSymbol) {

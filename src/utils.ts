@@ -80,33 +80,36 @@ export function rafMergeTick(fn: (tick: CandleData) => void): (tick: CandleData)
       // First tick in this frame — snapshot it directly
       pending = {
         timestamp: tick.timestamp,
-        open:      tick.open,
-        high:      tick.high,
-        low:       tick.low,
-        close:     tick.close,
-        volume:    tick.volume,
-        turnover:  tick.turnover
+        open: tick.open,
+        high: tick.high,
+        low: tick.low,
+        close: tick.close,
+        volume: tick.volume,
+        turnover: tick.turnover
       }
     } else {
       // Subsequent tick in same frame — merge OHLCV
       const newHigh = pending.high > tick.high
         ? pending.high
         : tick.high
-      const newLow = pending.low < tick.low
-        ? pending.low
-        : tick.low
+      const newLow = pending.low > tick.low
+        ? tick.low
+        : pending.low
+      // Volume: merge by summing. The `+` operator desugars branded Volume to
+      // number; asVolume() re-brands at the egress boundary. This is the only
+      // place where Volume arithmetic is permitted outside the engine core.
       const newVol = (pending.volume !== undefined && tick.volume !== undefined)
         ? asVolume(pending.volume + tick.volume)
         : (tick.volume ?? pending.volume)
 
       pending = {
         timestamp: pending.timestamp, // keep bar open timestamp
-        open:      pending.open,      // keep first open
-        high:      newHigh,
-        low:       newLow,
-        close:     tick.close,        // use last close
-        volume:    newVol,
-        turnover:  tick.turnover      // use last turnover (VWAP)
+        open: pending.open,      // keep first open
+        high: newHigh,
+        low: newLow,
+        close: tick.close,        // use last close
+        volume: newVol,
+        turnover: tick.turnover      // use last turnover (VWAP)
       }
     }
     if (rafId !== null) return

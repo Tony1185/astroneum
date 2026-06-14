@@ -9,6 +9,64 @@ once it reaches v1.0. Until then, minor releases may include breaking changes
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-06-14
+
+### Added — TradingView Competitive Parity
+
+- **Heikin-Ashi candle type** — `barStyle="heikin_ashi"` prop. `heikinAshi(data)` exported.
+- **Crosshair sync** in `MultiChartLayout` — `onCrosshairMove()` / `setCrosshair()` on handle.
+- **Measure tool** — 18th drawing tool in extension. Pixel distance label + risk/reward line.
+- **Magnet/Snap helpers** — `snapToOhlc()` and `snapAngle()` in `DrawingSnapper`.
+- **Undo/Redo manager** — `UndoManager` class using `serializeState()`/`loadState()`.
+- **Extended keyboard shortcuts** — arrow keys pan, Page/Home/End, mouse wheel zoom at cursor.
+- **Copy/paste drawings** — Ctrl+C copies overlays as JSON, Ctrl+V pastes.
+- **Session Visualizer** — `SessionVisualizer` renders session high/low/open/close lines.
+- **Volume Profile** — `volumeProfilePlugin` horizontal histogram with POC + Value Area.
+- **Position Visualizer** — `PositionVisualizer` entry/stop/target lines on chart.
+- **Compare Overlay** — `createCompareIndicator()` overlays second symbol normalized to %.
+- **Lock all drawings** — `lockAllDrawings(locked)` on `AstroneumHandle`.
+- **Drawing live preview** — `DrawingTemplates.preview()` + `applyColor()` per-overlay.
+- **Price axis scaling** — `priceScale='linear'|'log'|'percent'|'indexed'` prop + `PriceScaleTransform`.
+- **Chart templates** — `ChartTemplateManager` singleton saves/loads named configs to localStorage.
+- **Multi-timeframe resampling** — `resampleBars()`, `forwardFill()`, `mtfIndicator()`.
+- **Non-time-based bars** — `generateRenko()`, `generateKagi()`, `generateTickBars()`, `generateRangeBars()`.
+- **Point & Figure** — `generatePointAndFigure()`, `computePFColumns()`, `pfColumnsToBars()`.
+- **Multi-period layout** — `MultiPeriodLayout` stacked same-symbol different periods.
+- **Auto pattern detection** — `zigzag()`, `detectSupportResistance()`, `zigzagPlugin`.
+- **DOM visualization** — `domPlugin` bid/ask volume ladder.
+
+### Fixed — Bug, Perf & Security Hardening
+
+- **Bug: `rafMergeTick` low-merge inverted** — comparison operator fixed (was `<`, now `>`).
+- **Bug: `ScriptEngine` figures mutation** — shared `this.figures` now uses `[...result.figures]`.
+- **Bug: Plugin `figureKeys` closure leak** — moved to per-instance `extendData`.
+- **Bug: `Math.max(...arr)` stack overflow risk** — replaced with iterative loops in `DrawingSnapper`/`GlyphAtlas`.
+- **Bug: LTTB decimation NaN** — empty bucket guard added in `PerformanceMode.decimate()`.
+- **Bug: `virtualizeWindow` overlap** — startIdx/endIdx clamp added.
+- **Bug: `useKeyboardShortcuts` stale ref** — fixed stable wrapper pattern.
+- **Perf: Tooltip style objects pre-computed** at module scope (no per-render allocation).
+- **Perf: `adjustFromTo()` integer math** for week/month/year (eliminates `new Date()` allocations).
+- **Perf: `serializeState()` uses `structuredClone`** instead of recursive `deepClone`.
+- **Perf: 6 `useEffect` hooks batched** into one for engine prop sync.
+- **Perf: `sortBarsAsc()` O(n) validation** before sort (99% of API responses are pre-sorted).
+- **Perf: Shared color helpers** extracted to `candleShaders.ts` (~160 lines duplicated code removed).
+- **Perf: `TaskScheduler` priority queue** — data > indicator > overlay priority ordering.
+- **Perf: `IndicatorWorkerPool` SAB transfer** when `crossOriginIsolated`.
+- **Perf: `packBars()` optional columns** bitmap for skipping unused columns.
+- **Perf: `SharedIndicatorGLCanvas` FinalizationRegistry** for auto-cleanup.
+- **Perf: aria-live string buffer reuse** instead of template-string allocation per move.
+- **Security: ScriptEngine sandbox hardened** — `Object.freeze(Object/Array.prototype)` + `eval` blocked.
+- **Security: AlertManager webhook URL validated** — https-only, block private IPs/localhost.
+- **Security: localStorage writes debounced** — `AlertManager.check()` saves at most 1/s.
+- **Security: localStorage schema validation** on load — corrupted data rejected.
+- **Security: WebSocket URL scheme validation** — `wss://`/`ws://` required.
+- **Security: Polygon API key** moved from URL query param to `Authorization: Bearer` header.
+- **Security: `#apiKey` private class field** — non-enumerable, safe from `JSON.stringify`.
+- **Security: Locale strings stripped of HTML tags** — XSS prevention.
+- **Security: `BarsCodec.decode()` capped** at 500k bars to prevent OOM.
+- **Security: `pnpm audit` in all CI workflows.**
+- **Security: TA surface gating + OPFS path safety** documented.
+
 ## [0.3.0] — 2026-06-15
 
 ### Added — v0.5 Polish (partial)

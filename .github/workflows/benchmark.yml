@@ -3,11 +3,11 @@ name: Benchmark
 on:
   pull_request:
     paths:
-      - 'src/**'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'tsup.config.ts'
-      - '.github/workflows/benchmark.yml'
+      - "src/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "tsup.config.ts"
+      - ".github/workflows/benchmark.yml"
   workflow_dispatch:
 
 permissions:
@@ -24,11 +24,14 @@ jobs:
           version: 10
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'pnpm'
+          node-version: "20"
+          cache: "pnpm"
 
       - name: Install
         run: pnpm install --frozen-lockfile
+
+      - name: Audit dependencies
+        run: pnpm audit --audit-level moderate 2>&1 | true
 
       - name: Build
         run: pnpm build

@@ -78,7 +78,9 @@ export class TickAnimator {
   private _volume = 0
   private _turnover = 0
 
-  /** Reused output object — written in-place every rAF frame. No allocation. */
+  /** Reused output object — written in-place every rAF frame. No allocation.
+   * @warning Consumers MUST NOT retain or mutate this object. It is reused
+   * across frames — storing a reference will see stale/corrupted data. */
   private readonly _frame: CandleData = {
     timestamp: 0, open: 0, high: 0, low: 0, close: 0, volume: 0, turnover: 0
   }
@@ -117,25 +119,25 @@ export class TickAnimator {
       // If already animating, use the current interpolated position as the new `from`
       const t = this._elapsed()
       this._fromClose = lerp(this._fromClose, this._toClose, t)
-      this._fromHigh  = lerp(this._fromHigh,  this._toHigh,  t)
-      this._fromLow   = lerp(this._fromLow,   this._toLow,   t)
+      this._fromHigh = lerp(this._fromHigh, this._toHigh, t)
+      this._fromLow = lerp(this._fromLow, this._toLow, t)
     } else {
       // Start from the last known state
       this._fromClose = this._toClose || (next.close as number)
-      this._fromHigh  = this._toHigh  || (next.high  as number)
-      this._fromLow   = this._toLow   || (next.low   as number)
+      this._fromHigh = this._toHigh || (next.high as number)
+      this._fromLow = this._toLow || (next.low as number)
     }
 
     // Update target — always use the latest incoming tick.
     this._toClose = next.close as number
-    this._toHigh  = newBar ? (next.high as number) : Math.max(this._fromHigh, next.high as number)
-    this._toLow   = newBar ? (next.low as number) : Math.min(this._fromLow, next.low as number)
+    this._toHigh = newBar ? (next.high as number) : Math.max(this._fromHigh, next.high as number)
+    this._toLow = newBar ? (next.low as number) : Math.min(this._fromLow, next.low as number)
 
     // Stable fields — these don't animate, just copy
     this._timestamp = nextTimestamp
-    this._open      = next.open      as number
-    this._volume    = (next.volume  ?? 0) as number
-    this._turnover  = (next.turnover ?? 0) as number
+    this._open = next.open as number
+    this._volume = (next.volume ?? 0) as number
+    this._turnover = (next.turnover ?? 0) as number
 
     this._startTime = performance.now()
     this._running = true
@@ -181,12 +183,12 @@ export class TickAnimator {
 
     // Write interpolated values into the pre-allocated frame object
     this._frame.timestamp = this._timestamp as CandleData['timestamp']
-    this._frame.open      = this._open      as CandleData['open']
-    this._frame.close     = lerp(this._fromClose, this._toClose, t) as CandleData['close']
-    this._frame.high      = lerp(this._fromHigh,  this._toHigh,  t) as CandleData['high']
-    this._frame.low       = lerp(this._fromLow,   this._toLow,   t) as CandleData['low']
-    this._frame.volume    = this._volume    as CandleData['volume']
-    this._frame.turnover  = this._turnover  as CandleData['turnover']
+    this._frame.open = this._open as CandleData['open']
+    this._frame.close = lerp(this._fromClose, this._toClose, t) as CandleData['close']
+    this._frame.high = lerp(this._fromHigh, this._toHigh, t) as CandleData['high']
+    this._frame.low = lerp(this._fromLow, this._toLow, t) as CandleData['low']
+    this._frame.volume = this._volume as CandleData['volume']
+    this._frame.turnover = this._turnover as CandleData['turnover']
 
     this._onFrame(this._frame)
 
@@ -195,9 +197,9 @@ export class TickAnimator {
       this._rafId = requestAnimationFrame(this._tick)
     } else {
       // Animation done — emit exact final values
-      this._frame.close    = this._toClose   as CandleData['close']
-      this._frame.high     = this._toHigh    as CandleData['high']
-      this._frame.low      = this._toLow     as CandleData['low']
+      this._frame.close = this._toClose as CandleData['close']
+      this._frame.high = this._toHigh as CandleData['high']
+      this._frame.low = this._toLow as CandleData['low']
       this._onFrame(this._frame)
       this._running = false
     }

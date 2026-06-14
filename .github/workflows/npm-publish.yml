@@ -3,11 +3,11 @@ name: Publish Tagged Release to npm
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
     inputs:
       otp:
-        description: 'NPM one-time password (OTP) for 2FA'
+        description: "NPM one-time password (OTP) for 2FA"
         required: false
         type: string
 
@@ -38,6 +38,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Audit dependencies
+        run: pnpm audit --audit-level moderate 2>&1 | true
 
       - name: Verify package
         run: pnpm verify

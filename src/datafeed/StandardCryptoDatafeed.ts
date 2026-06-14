@@ -129,6 +129,8 @@ const BINANCE_WS_BASE_URL = 'wss://fstream.binance.com/market/ws'
 const BINANCE_REST_BASE_URL = 'https://fapi.binance.com/fapi/v1'
 const BITGET_WS_BASE_URL = 'wss://ws.bitget.com/v2/ws/public'
 const BITGET_REST_BASE_URL = 'https://api.bitget.com/api/v2/mix/market'
+// OKX WSS runs on port 8443 (non-standard). Some restrictive corporate firewalls
+// block non-standard ports — consumers behind such networks may need a proxy.
 const OKX_WS_BASE_URL = 'wss://ws.okx.com:8443/ws/v5/public'
 const OKX_REST_BASE_URL = 'https://www.okx.com/api/v5/market'
 
@@ -159,7 +161,13 @@ function toNumber(value: unknown): number | null {
 }
 
 function sortBarsAsc(bars: CandleData[]): CandleData[] {
-  return bars.slice().sort((a, b) => a.timestamp - b.timestamp)
+  // Validate ascending order first — exchange REST APIs return sorted data.
+  // Only allocate a copy + sort on the rare out-of-order case.
+  let sorted = true
+  for (let i = 1; i < bars.length; i++) {
+    if (bars[i].timestamp < bars[i - 1].timestamp) { sorted = false; break }
+  }
+  return sorted ? bars : bars.slice().sort((a, b) => a.timestamp - b.timestamp)
 }
 
 function filterBarsRange(bars: CandleData[], from: number, to: number): CandleData[] {

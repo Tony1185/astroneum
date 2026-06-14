@@ -32,7 +32,7 @@ export class OPFSCache {
   private _root: FileSystemDirectoryHandle | null = null
   private _ready = false
 
-  static isSupported (): boolean {
+  static isSupported(): boolean {
     return (
       typeof navigator !== 'undefined' &&
       typeof (navigator.storage as { getDirectory?: unknown }).getDirectory === 'function'
@@ -43,7 +43,7 @@ export class OPFSCache {
    * Initialise the OPFS root directory.  Must be called once before any
    * other method.  Safe to call multiple times (idempotent).
    */
-  async init (): Promise<void> {
+  async init(): Promise<void> {
     if (this._ready) return
     if (!OPFSCache.isSupported()) return
     try {
@@ -59,7 +59,7 @@ export class OPFSCache {
    * Read cached bars for the given key.
    * @returns Decoded bars, or `null` on cache miss / unavailable.
    */
-  async get (
+  async get(
     ticker: string,
     timespan: string,
     multiplier: number,
@@ -70,7 +70,7 @@ export class OPFSCache {
     if (fh === null) return null
     try {
       const file = await fh.getFile()
-      const buf  = await file.arrayBuffer()
+      const buf = await file.arrayBuffer()
       const bars = BarsCodec.decode(new Uint8Array(buf))
       return bars.length > 0 ? bars : null
     } catch {
@@ -81,7 +81,7 @@ export class OPFSCache {
   /**
    * Write bars into the cache.
    */
-  async set (
+  async set(
     ticker: string,
     timespan: string,
     multiplier: number,
@@ -106,7 +106,7 @@ export class OPFSCache {
   /**
    * Remove a specific cache entry.
    */
-  async invalidate (
+  async invalidate(
     ticker: string,
     timespan: string,
     multiplier: number,
@@ -125,7 +125,7 @@ export class OPFSCache {
 
   // ── Private helpers ──────────────────────────────────────────────────────
 
-  private async _fileHandle (
+  private async _fileHandle(
     ticker: string,
     timespan: string,
     multiplier: number,
@@ -143,7 +143,10 @@ export class OPFSCache {
     }
   }
 
-  private async _getDir (
+  // Ticker names come from SymbolInfo (potentially user-controlled via datafeed),
+  // but the OPFS API uses inode-based handles, not path strings — directory
+  // traversal via "../" is architecturally impossible.
+  private async _getDir(
     ticker: string,
     timespan: string,
     multiplier: number,
@@ -152,7 +155,7 @@ export class OPFSCache {
     if (this._root === null) return null
     try {
       const tickerDir = await this._root.getDirectoryHandle(ticker, { create })
-      const tsDir     = await tickerDir.getDirectoryHandle(timespan, { create })
+      const tsDir = await tickerDir.getDirectoryHandle(timespan, { create })
       return await tsDir.getDirectoryHandle(String(multiplier), { create })
     } catch {
       return null
