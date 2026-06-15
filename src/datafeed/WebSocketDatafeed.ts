@@ -268,7 +268,13 @@ export abstract class WebSocketDatafeed implements Datafeed {
   private _cleanup(key: string): void {
     const ws = this._sockets.get(key)
     if (ws) {
-      this._manualClose.add(key)
+      // Null out handlers before close so the async onclose callback
+      // cannot delete the *new* socket that _connect() may have already
+      // stored for the same key (React StrictMode double-mount, rapid re-subscribe).
+      ws.onopen = null
+      ws.onmessage = null
+      ws.onerror = null
+      ws.onclose = null
       ws.close()
       this._sockets.delete(key)
     }

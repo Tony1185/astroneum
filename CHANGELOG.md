@@ -9,7 +9,83 @@ once it reaches v1.0. Until then, minor releases may include breaking changes
 
 ## [Unreleased]
 
-## [0.4.0] — 2026-06-14
+### Added — Full Indicator Parity (50 total, +23 new)
+
+Astroneum now ships **50 technical indicators** — up from 27 — achieving full
+parity with the comparison table against TradingView Pro. Every indicator in the
+original roadmap (Phases 1–4) is implemented.
+
+**Phase 1 — Critical (MVP)**
+- **ATR** (Average True Range) — `averageTrueRange.ts` — market volatility
+  measure used for position sizing and stop-loss placement.
+- **ADX** (Average Directional Index) — `averageDirectionalIndex.ts` —
+  standalone trend-strength indicator (0–25 weak, 25–50 strong, 50+ very
+  strong).
+- **A/D** (Accumulation/Distribution) — `accumulationDistribution.ts` —
+  cumulative volume + CLV money flow, divergence signals for reversals.
+
+**Phase 2 — Important (Competitive Feature)**
+- **CMF** (Chaikin Money Flow) — `chaikinMoneyFlow.ts` — money flow over N
+  periods using close-location-within-range (default 20).
+- **MFI** (Money Flow Index) — `moneyFlowIndex.ts` — volume-weighted RSI
+  using typical price, overbought >80 / oversold <20.
+- **VWAP** (Volume Weighted Average Price) — `volumeWeightedAveragePrice.ts`
+  — cumulative volume-weighted typical price overlay.
+- **Ichimoku Cloud** — `ichimokuCloud.ts` — 5-line comprehensive trend
+  system (Tenkan/Kijun/Senkou A/B/Chikou), default periods 9/26/52.
+
+**Phase 3 — Polish (Market Completeness)**
+- **DEMA / TEMA / WMA / VWMA** — double/triple/weighted/volume-weighted
+  moving averages (`doubleExponentialMovingAverage.ts`,
+  `tripleExponentialMovingAverage.ts`, `weightedMovingAverage.ts`,
+  `volumeWeightedMovingAverage.ts`).
+- **HV** (Historical Volatility) — `historicalVolatility.ts` — annualized
+  volatility from log returns × √252.
+- **DC** (Donchian Channels) — `donchianChannels.ts` — highest-high /
+  lowest-low channels with midline.
+- **KC** (Keltner Channels) — `keltnerChannels.ts` — EMA middle line with
+  ATR-based upper/lower bands.
+- **SuperTrend** — `superTrend.ts` — trend-following volatility stop with
+  direction tracking.
+
+**Phase 4 — Advanced (Niche Features)**
+- **STDDEV** (Standard Deviation) — `standardDeviation.ts` — population
+  standard deviation of close over N periods.
+- **VROC** (Volume Rate of Change) — `volumeRateOfChange.ts` — percentage
+  change in volume over N periods.
+- **PP** (Pivot Points) — `pivotPoints.ts` — classic pivot points with
+  R1–R3 resistance and S1–S3 support levels.
+- **CORR** (Correlation Coefficient) — `correlationCoefficient.ts` —
+  Pearson's R between close and linear sequence 1..N.
+- **LinReg** (Linear Regression) — `linearRegression.ts` — least-squares
+  regression line on close prices.
+- **AMA** (Adaptive Moving Average / KAMA) — `adaptiveMovingAverage.ts` —
+  Kaufman's adaptive MA with efficiency-ratio smoothing.
+- **HMA** (Hull Moving Average) — `hullMovingAverage.ts` — WMA-based
+  lag-reduced moving average.
+- **ZZ** (ZigZag) — `zigzag.ts` — pivot-based trend-reversal detection
+  with configurable deviation percentage.
+
+### Changed
+
+- **Demo page expanded** — category-organised indicator picker displaying all
+  50 indicators with tooltips, overlay vs. sub-pane visual distinction
+  (amber/green), and active-indicator status bar with counts.
+- **`INDICATOR_COMPARISON.md`** fully rewritten to track all indicators,
+  coverage percentages per category, and completed roadmap.
+
+### Fixed
+
+- **SuperTrend state tracking** — replaced fragile float comparison
+  `prevSuperTrend === upperBand` with `direction` variable for correct
+  trend-state transitions.
+- **HMA performance** — reduced from O(n³) to O(n²) by pre-computing
+  `2*WMA(n/2) - WMA(n)` values before the final WMA pass.
+- **ZigZag pivot detection** — replaced adjacent-bar comparison with
+  running extreme tracking to reliably capture peaks/troughs during
+  consolidation phases.
+
+---
 
 ### Added — TradingView Competitive Parity
 

@@ -5,8 +5,12 @@
  * and compile it into an IndicatorTemplate that is registered
  * with the chart engine during compilation.
  *
- * Security: scripts run inside an isolated Function scope with a
- * curated API surface.  No access to window/document/fetch/eval.
+ * Security: scripts run inside a Function scope with a curated API
+ * surface (forbidden identifiers shadowed, Object/Array prototypes frozen).
+ * This is a best-effort sandbox suitable for trusted user scripts only —
+ * constructor-chain escapes (e.g. (0).constructor.constructor) are not
+ * fully blocked. Do NOT run untrusted third-party scripts without a
+ * real isolate (sandboxed iframe or Web Worker).
  *
  * Usage:
  *   const engine = ScriptEngine.getInstance()
@@ -219,11 +223,12 @@ function buildSandboxWrapper(scriptBody: string): string {
     "use strict";
     ${forbidden}
 
-    // Freeze constructor chains to block sandbox escape via
-    //   this.constructor.constructor('return fetch')()
-    //   [].constructor.constructor('return process')()
-    // Note: Function.prototype is NOT frozen because new Function()
-    // is the sandbox factory itself and needs its constructor chain.
+    // Freeze Object/Array prototypes to prevent prototype-pollution attacks
+    // (adding properties that bleed across script invocations).
+    // Note: this does NOT block constructor-chain escapes such as
+    //   (0).constructor.constructor('return globalThis')()
+    // because Number.prototype and Function.prototype are not frozen
+    // (Function.prototype must stay live for the factory itself).
     Object.freeze(Object.prototype);
     Object.freeze(Array.prototype);
 
