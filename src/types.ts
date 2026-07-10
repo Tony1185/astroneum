@@ -124,6 +124,7 @@ export interface AstroneumOptions {
    * 'percent' shows percentage change from the first visible bar.
    */
   priceScale?: 'linear' | 'log' | 'percent'
+  initialHistory?: 'all' | 'none'
 }
 
 /**
