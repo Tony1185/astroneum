@@ -26,8 +26,8 @@ import {
 } from './common/utils/format'
 import { calcTextWidth } from './common/utils/canvas'
 import type { ActionType } from './common/Action'
-import type { IndicatorSeries, Indicator } from './component/Indicator'
-import type { OverlayMode, OverlayTemplate, OverlayCreate } from './component/Overlay'
+import type { IndicatorSeries, Indicator, IndicatorCreate, IndicatorFilter } from './component/Indicator'
+import type { OverlayMode, OverlayTemplate, OverlayCreate, OverlayFilter } from './component/Overlay'
 import type { PaneOptions } from './pane/types'
 
 import type { FormatDateType, Options, ZoomAnchor } from './Options'
@@ -160,8 +160,8 @@ export {
   type CandleType, type FormatDateType, type ZoomAnchor,
   type DomPosition, type ActionType, type IndicatorSeries, type OverlayMode,
   type CandleData, type Styles, type DeepPartial, type Nullable,
-  type Chart, type PaneOptions, type Indicator,
-  type OverlayTemplate, type OverlayCreate,
+  type Chart, type PaneOptions, type Indicator, type IndicatorCreate, type IndicatorFilter,
+  type OverlayTemplate, type OverlayCreate, type OverlayFilter,
   type LineAttrs, type PolygonAttrs, type TextAttrs, type CircleAttrs,
   type Coordinate, type Bounding,
   type TooltipFeatureStyle,

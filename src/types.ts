@@ -3,8 +3,8 @@ import type { CandleData, Styles, DeepPartial, Nullable } from '@/engine'
 import type { Chart, DomPosition } from '@/engine'
 import type { PaneOptions } from '@/engine'
 import type { ActionType } from '@/engine'
-import type { IndicatorSeries, Indicator } from '@/engine'
-import type { OverlayMode, OverlayTemplate, OverlayCreate } from '@/engine'
+import type { IndicatorSeries, Indicator, IndicatorCreate, IndicatorFilter } from '@/engine'
+import type { OverlayMode, OverlayTemplate, OverlayCreate, OverlayFilter } from '@/engine'
 import type { Coordinate, Bounding } from '@/engine'
 import type { LineAttrs, PolygonAttrs, TextAttrs, CircleAttrs } from '@/engine'
 import type { TooltipFeatureStyle, LineType, PolygonType, TooltipShowRule, TooltipShowType, FeatureType, TooltipFeaturePosition, CandleType, CandleTooltipRectPosition } from '@/engine'
@@ -15,8 +15,8 @@ export type { CandleData, Styles, DeepPartial, Nullable }
 export type { Chart, DomPosition }
 export type { PaneOptions }
 export type { ActionType }
-export type { IndicatorSeries, Indicator }
-export type { OverlayMode, OverlayTemplate, OverlayCreate }
+export type { IndicatorSeries, Indicator, IndicatorCreate, IndicatorFilter }
+export type { OverlayMode, OverlayTemplate, OverlayCreate, OverlayFilter }
 export type { Coordinate, Bounding }
 export type { LineAttrs, PolygonAttrs, TextAttrs, CircleAttrs }
 export type { TooltipFeatureStyle, LineType, PolygonType, TooltipShowRule, TooltipShowType, FeatureType, TooltipFeaturePosition, CandleType, CandleTooltipRectPosition }
@@ -193,6 +193,13 @@ export interface AstroneumHandle {
   setCrosshair(data: unknown): void
   /** Lock or unlock ALL drawing overlays at once. */
   lockAllDrawings(locked: boolean): void
+  createIndicator(value: string | IndicatorCreate, isStack?: boolean, paneOptions?: PaneOptions): Nullable<string>
+  removeIndicator(filter?: IndicatorFilter): boolean
+  createOverlay(value: string | OverlayCreate | Array<string | OverlayCreate>): Nullable<string> | Array<Nullable<string>>
+  removeOverlay(filter?: OverlayFilter): boolean
+  getDataList(): CandleData[]
+  resetData(): void
+  resize(): void
 }
 
 // ---------------------------------------------------------------------------

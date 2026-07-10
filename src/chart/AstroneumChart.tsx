@@ -26,7 +26,7 @@ import { mountChartPlugins } from '@/plugin'
 
 import { translateTimezone } from '@/widget/timezone-modal/data'
 
-import { type Period, type AstroneumOptions, type AstroneumHandle, type SerializedChartState } from '@/types'
+import { type Period, type AstroneumOptions, type AstroneumHandle, type SerializedChartState, type IndicatorCreate, type IndicatorFilter, type OverlayCreate, type OverlayFilter, type Nullable } from '@/types'
 
 import { useChartStore } from '@/store/chartStore'
 import { useIndicatorStore } from '@/store/indicatorStore'
@@ -349,12 +349,12 @@ const AstroneumChart = forwardRef<AstroneumHandle, AstroneumChartProps>((props, 
         widget.overrideOverlay({ id: o.id, lock: locked })
       }
     },
-    createIndicator: (value, isStack?, paneOptions?) => widgetRef.current?.createIndicator(value, isStack, paneOptions) ?? null,
-    removeIndicator: (filter) => widgetRef.current?.removeIndicator(filter) ?? false,
-    createOverlay: (value) => (widgetRef.current?.createOverlay(value as never) ?? null) as string | null,
-    removeOverlay: (filter?) => widgetRef.current?.removeOverlay(filter as never) ?? false,
+    createIndicator: (value: string | IndicatorCreate, isStack?: boolean, paneOptions?: PaneOptions) => widgetRef.current?.createIndicator(value, isStack, paneOptions) ?? null,
+    removeIndicator: (filter?: IndicatorFilter) => widgetRef.current?.removeIndicator(filter) ?? false,
+    createOverlay: (value: string | OverlayCreate | Array<string | OverlayCreate>) => (widgetRef.current?.createOverlay(value as never) ?? null) as Nullable<string> | Array<Nullable<string>>,
+    removeOverlay: (filter?: OverlayFilter) => widgetRef.current?.removeOverlay(filter as never) ?? false,
     getDataList: () => widgetRef.current?.getDataList() ?? [],
-    setData: (data) => { widgetRef.current?.setData(data) },
+    resetData: () => { widgetRef.current?.resetData() },
     resize: () => { widgetRef.current?.resize() },
   }), [])
 
