@@ -59,7 +59,7 @@ importers:
 
   demo:
     dependencies:
-      astroneum:
+      '@tony01/astroneum':
         specifier: workspace:*
         version: link:..
       next:
