@@ -26,7 +26,7 @@ import { mountChartPlugins } from '@/plugin'
 
 import { translateTimezone } from '@/widget/timezone-modal/data'
 
-import { type Period, type AstroneumOptions, type AstroneumHandle, type SerializedChartState, type IndicatorCreate, type IndicatorFilter, type OverlayCreate, type OverlayFilter, type Nullable } from '@/types'
+import { type Period, type AstroneumOptions, type AstroneumHandle, type SerializedChartState, type IndicatorCreate, type IndicatorFilter, type OverlayCreate, type OverlayFilter } from '@/types'
 
 import { useChartStore } from '@/store/chartStore'
 import { useIndicatorStore } from '@/store/indicatorStore'
