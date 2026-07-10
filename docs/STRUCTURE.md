@@ -2,7 +2,7 @@
 
 > Living reference for the Astroneum project deployed at **https://72.62.73.180/astroneum/**.
 > Documents *what lives where*. For design rationale see `docs/design-astroneum.md`.
-> Last updated: **2026-07-08**. Keep this file in sync on every structural change (see §11).
+> Last updated: **2026-07-10**. Keep this file in sync on every structural change (see §11).
 
 ## 1. Overview
 
@@ -14,7 +14,7 @@
 | License | MIT (author `kowito`, repo `github.com/kowito/astroneum`) |
 | Stack | TypeScript · React 18/19 peer · ESM-only · Canvas + WebGL/WebGPU · tsup · pnpm |
 | Server path | `/opt/astroneum` (owned by `deploy:deploy`) |
-| Git on server | **None** — `/opt/astroneum` has no `.git`; it is a snapshot, not a clone. Edits are direct file changes. |
+| Git on server | Clone of `Tony1185/Astroneum` (fork). `origin` → fork, `upstream` → `kowito/astroneum`. Deploy via `git pull` → build → PM2 restart. |
 | Served at | `https://72.62.73.180/astroneum/` (nginx → `127.0.0.1:3002`) |
 | Coexistence | Shares host with `trading-bot-v2` (`/opt/trading-bot-v2`, ports 3000/3001). No shared code or DB. |
 
@@ -26,6 +26,12 @@
 ├── dist/                 # compiled output: ESM js + astroneum.css + .d.ts + locale chunks (gitignored, build artifact)
 ├── demo/                 # Next.js showcase app "astroneum-demo-next" (see §5)
 ├── docs/                 # developer docs (see §9)
+├── .opencode/            # AI OS config (fork-only, never PR to upstream)
+│   ├── opencode.json     # references (11 docs), permissions, skills path
+│   ├── agents/           # 6 subagents: builder, demo-builder, deployer, doc-syncer, parity-checker, auditor
+│   ├── commands/         # 5 commands: /deploy, /refresh-structure, /refresh-todo, /verify, /parity-check
+│   └── skills/           # 3 skills: conventions, deploy, doc-sync
+├── AGENTS.md             # project kernel — auto-loaded by opencode as system prompt
 ├── .github/workflows/    # CI: auto-version-bump, benchmark, npm-publish
 ├── ecosystem.config.cjs  # PM2 config for astroneum-demo (see §7)
 ├── pnpm-workspace.yaml   # workspace: packages=[demo]; allowBuilds: @parcel/watcher, esbuild, sharp

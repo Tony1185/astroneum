@@ -146,7 +146,7 @@
 
 | # | Feature | Status | Gap / next action |
 |---|---|---|---|
-| 9.1 | Git on server | ⚠️ | `/opt/astroneum` has no `.git` — snapshot, risky. Consider proper clone |
+| 9.1 | Git on server | ✅ | Server is now a clone of `Tony1185/Astroneum`. Deploy via `git pull` → build → PM2 restart |
 | 9.2 | nginx config cleanup | ⚠️ | 3 overlapping server blocks in `sites-enabled` (STRUCTURE.md §7). Consolidate |
 | 9.3 | PM2 stability | ⚠️ | `astroneum-demo` high restart count. Investigate memory/restart loop |
 | 9.4 | Automated deploy pipeline | ❌ | Manual ssh + `pnpm build` + `pm2 restart`. Add CI deploy |
