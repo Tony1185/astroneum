@@ -31,6 +31,10 @@ coverage/
 .DS_Store
 Thumbs.db
 
+# Nested clones / reference material (not part of the library)
+Astroneum/
+tv-mirror-reference/
+
 # Editor / IDE
 .vscode/*
 !.vscode/extensions.json
