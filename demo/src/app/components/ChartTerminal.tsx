@@ -442,7 +442,7 @@ export default function ChartTerminal() {
     setReplayActive(v => !v)
   }, [])
 
-  const handleReplayBars = useCallback((bars: CandleData[]) => {
+  const handleReplayBars = useCallback((_bars: CandleData[]) => {
     chartRef.current?.resetData()
   }, [])
 
