@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { AlertManager } from '@tony1185/astroneum'
+import { AlertManager } from '@tony01/astroneum'
 import AlertDialog from '../_components/alerts/AlertDialog'
 import '../_components/alerts/alert-dialog.css'
 

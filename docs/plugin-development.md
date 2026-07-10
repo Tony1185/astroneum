@@ -58,7 +58,7 @@ If WebGL2 is unavailable in the browser, `render2D` is used as fallback when ava
 Each `calc` return element maps to one candle bar. Return a plain `number` (or `null`) per bar.
 
 ```typescript
-import { registerIndicatorPlugin, type IndicatorPlugin, type CandleData } from '@tony1185/astroneum'
+import { registerIndicatorPlugin, type IndicatorPlugin, type CandleData } from '@tony01/astroneum'
 
 const spreadIndicator: IndicatorPlugin<number> = {
   name: 'SPREAD',
@@ -143,7 +143,7 @@ import {
   type IndicatorPlugin,
   type CandleData,
   type Viewport
-} from '@tony1185/astroneum'
+} from '@tony01/astroneum'
 
 interface PivotOutput {
   pivot: number | null
@@ -201,7 +201,7 @@ import {
   type IndicatorPlugin,
   type CandleData,
   type Viewport
-} from '@tony1185/astroneum'
+} from '@tony01/astroneum'
 
 const VERT_SHADER = `#version 300 es
   in vec2 a_pos;
@@ -312,7 +312,7 @@ import {
   type ChartPlugin,
   type ChartPluginContext,
   type IndicatorPlugin
-} from '@tony1185/astroneum'
+} from '@tony01/astroneum'
 
 const vwapIndicator: IndicatorPlugin<number | null> = {
   name: 'VWAP',
@@ -372,8 +372,8 @@ Multiple plugins are supported and executed in order. Disposers run in **reverse
 For full control â€” custom figure types, tooltip labels, drawing primitives â€” use `registerIndicator` directly.
 
 ```typescript
-import { registerIndicator, type CandleData } from '@tony1185/astroneum'
-import type { IndicatorTemplate } from '@tony1185/astroneum'  // re-exported from engine
+import { registerIndicator, type CandleData } from '@tony01/astroneum'
+import type { IndicatorTemplate } from '@tony01/astroneum'  // re-exported from engine
 
 const myTemplate: IndicatorTemplate = {
   name: 'MY_INDICATOR',
@@ -408,7 +408,7 @@ registerIndicator(myTemplate)
 ### Usage
 
 ```typescript
-import { ScriptEngine, AstroneumChart } from '@tony1185/astroneum'
+import { ScriptEngine, AstroneumChart } from '@tony01/astroneum'
 
 const engine = ScriptEngine.getInstance()
 

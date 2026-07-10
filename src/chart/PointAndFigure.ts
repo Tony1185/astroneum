@@ -12,7 +12,7 @@
  * block (open=low, close=high for X, open=high, close=low for O).
  *
  * Usage:
- *   import { generatePointAndFigure } from '@tony1185/astroneum'
+ *   import { generatePointAndFigure } from '@tony01/astroneum'
  *   const pfBars = generatePointAndFigure(bars, 10, 3) // $10 box, 3-box reversal
  *   // Feed to chart as regular candles
  *

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
-import { STANDARD_CRYPTO_SYMBOLS, type SymbolInfo, type Period } from '@tony1185/astroneum'
+import { STANDARD_CRYPTO_SYMBOLS, type SymbolInfo, type Period } from '@tony01/astroneum'
 
 interface CommandAction {
   id: string

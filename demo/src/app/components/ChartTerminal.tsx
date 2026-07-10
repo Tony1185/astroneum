@@ -19,8 +19,8 @@ import {
   type SymbolInfo,
   type Period,
   type CandleData,
-} from '@tony1185/astroneum'
-import { AlertManager } from '@tony1185/astroneum'
+} from '@tony01/astroneum'
+import { AlertManager } from '@tony01/astroneum'
 import TerminalShell, { useTerminalShell } from './TerminalShell'
 import WatchlistPanel, { AlertsPanel } from './panels/WatchlistPanel'
 import PineEditorPanel, { StrategyTesterPanel, TradingPanel, StubPanel } from './panels/PineEditorPanel'

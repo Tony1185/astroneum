@@ -2,7 +2,7 @@
 
 import './enhancements.css'
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { BarReplay, type BarReplayState, type CandleData, type Datafeed, type SymbolInfo, type Period } from '@tony1185/astroneum'
+import { BarReplay, type BarReplayState, type CandleData, type Datafeed, type SymbolInfo, type Period } from '@tony01/astroneum'
 
 interface ReplayToolbarProps {
   datafeed: Datafeed

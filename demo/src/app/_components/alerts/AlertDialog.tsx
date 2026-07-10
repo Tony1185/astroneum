@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { AlertManager, type AlertCondition, type AlertFrequency, type NotificationSchedule, type SoundTitle, type SoundDuration } from '@tony1185/astroneum'
+import { AlertManager, type AlertCondition, type AlertFrequency, type NotificationSchedule, type SoundTitle, type SoundDuration } from '@tony01/astroneum'
 import NotificationsDialog from './NotificationsDialog'
 import './alert-dialog.css'
 

@@ -43,7 +43,7 @@ import type {
   Period,
   CandleData,
   DatafeedSubscribeCallback
-} from '@tony1185/astroneum'
+} from '@tony01/astroneum'
 
 const SYMBOLS: SymbolInfo[] = [
   {
@@ -272,7 +272,7 @@ const myDatafeed: Datafeed = {
 ## Using a Datafeed in AstroneumChart
 
 ```tsx
-import { AstroneumChart } from '@tony1185/astroneum'
+import { AstroneumChart } from '@tony01/astroneum'
 import { myDatafeed } from './datafeed'
 
 export function Chart() {

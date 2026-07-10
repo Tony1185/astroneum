@@ -1,7 +1,7 @@
 'use client'
 
 import type { NotificationConfig } from './AlertDialog'
-import type { SoundTitle, SoundDuration, NotificationSchedule } from '@tony1185/astroneum'
+import type { SoundTitle, SoundDuration, NotificationSchedule } from '@tony01/astroneum'
 import './alert-dialog.css'
 
 const SOUND_TITLES: SoundTitle[] = ['Thin', 'Classic', 'Alert', 'Bell', 'Chime']

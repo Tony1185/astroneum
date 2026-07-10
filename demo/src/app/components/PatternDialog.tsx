@@ -2,7 +2,7 @@
 
 import './enhancements.css'
 import { useState, useRef, useEffect } from 'react'
-import { PATTERN_CATALOGUE, type PatternDef } from '@tony1185/astroneum'
+import { PATTERN_CATALOGUE, type PatternDef } from '@tony01/astroneum'
 
 interface PatternDialogProps {
   enabledMask: number[]

@@ -12,7 +12,7 @@ import type { IndicatorPlugin, Viewport, CandleData } from '@/types'
  * useful for identifying support/resistance and liquidity zones.
  *
  * Usage:
- *   import { domPlugin } from '@tony1185/astroneum'
+ *   import { domPlugin } from '@tony01/astroneum'
  *   registerIndicatorPlugin(domPlugin)
  *   chart.createIndicator({ name: 'dom', calcParams: [20] }) // 20 price levels
  */

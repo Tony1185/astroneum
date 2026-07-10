@@ -8,7 +8,7 @@
     "start": "next start -p 3002"
   },
   "dependencies": {
-    "@tony1185/astroneum": "workspace:*",
+    "@tony01/astroneum": "workspace:*",
     "next": "^15.3.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"

@@ -2,7 +2,7 @@
 
 import './enhancements.css'
 import { useState, useRef, useEffect } from 'react'
-import { MultiChartLayout, type MultiChartCount, type AstroneumHandle, type SymbolInfo, type Period, type Datafeed } from '@tony1185/astroneum'
+import { MultiChartLayout, type MultiChartCount, type AstroneumHandle, type SymbolInfo, type Period, type Datafeed } from '@tony01/astroneum'
 
 interface MultiChartViewProps {
   datafeed: Datafeed

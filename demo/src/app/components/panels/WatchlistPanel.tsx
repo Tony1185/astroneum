@@ -3,7 +3,7 @@
 import './panels.css'
 import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { WatchlistManager, AlertManager, type Watchlist } from '@tony1185/astroneum'
+import { WatchlistManager, AlertManager, type Watchlist } from '@tony01/astroneum'
 import AlertDialog from '../../_components/alerts/AlertDialog'
 
 const manager = WatchlistManager.getInstance()

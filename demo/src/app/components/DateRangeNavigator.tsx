@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { type ChartPluginContext } from '@tony1185/astroneum'
+import { type ChartPluginContext } from '@tony01/astroneum'
 
 type ChartEngine = ChartPluginContext['chart']
 

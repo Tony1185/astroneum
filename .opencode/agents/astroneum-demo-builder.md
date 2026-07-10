@@ -39,7 +39,7 @@ You build the Astroneum demo app â€” the Next.js terminal at `demo/src/`.
 ## Key patterns
 
 - `'use client'` at top of client components
-- `import { AstroneumChart, ... } from '@tony1185/astroneum'` â€” public barrel only
+- `import { AstroneumChart, ... } from '@tony01/astroneum'` â€” public barrel only
 - `import 'astroneum/style.css'` for chart styles
 - `next.config.ts` has `transpilePackages: ['astroneum']` and `basePath: /astroneum`
 - `demo/.env` has `NEXT_PUBLIC_BASE_PATH=/astroneum`

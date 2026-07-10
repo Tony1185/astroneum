@@ -164,7 +164,7 @@ Only `en-US` is bundled with the main entry. Load any other built-in
 locale on demand:
 
 ```ts
-import { loadLocale, BUILTIN_LOCALES } from '@tony1185/astroneum'
+import { loadLocale, BUILTIN_LOCALES } from '@tony01/astroneum'
 
 await loadLocale('ja-JP')
 chartRef.current?.setLocale('ja-JP')
@@ -202,11 +202,11 @@ import to be forward-compatible.
 
 ```ts
 // recommended â€” forward-compatible with v1.0
-import { BarReplay } from '@tony1185/astroneum/replay'
-import { createStandardCryptoDatafeed } from '@tony1185/astroneum/datafeeds/crypto'
+import { BarReplay } from '@tony01/astroneum/replay'
+import { createStandardCryptoDatafeed } from '@tony01/astroneum/datafeeds/crypto'
 
 // legacy â€” works today, will be removed in v1.0
-import { BarReplay, createStandardCryptoDatafeed } from '@tony1185/astroneum'
+import { BarReplay, createStandardCryptoDatafeed } from '@tony01/astroneum'
 ```
 
 ---
@@ -216,7 +216,7 @@ import { BarReplay, createStandardCryptoDatafeed } from '@tony1185/astroneum'
 ### Brand cast helpers
 
 ```typescript
-import { asPrice, asVolume, asTimestamp } from '@tony1185/astroneum'
+import { asPrice, asVolume, asTimestamp } from '@tony01/astroneum'
 
 const p: Price = asPrice(100.50)
 const v: Volume = asVolume(1_250_000)
@@ -228,7 +228,7 @@ These are type-safe cast functions. They assert that a plain `number` belongs to
 ### `rafCoalesce`
 
 ```typescript
-import { rafCoalesce } from '@tony1185/astroneum'
+import { rafCoalesce } from '@tony01/astroneum'
 
 const dispatch = rafCoalesce((tick: CandleData) => chart.updateBar(tick))
 webSocket.onmessage = e => dispatch(parse(e.data)) // safe to call 100Ã—/s
@@ -239,7 +239,7 @@ Returns a dispatcher that schedules `fn` on the next `requestAnimationFrame`, co
 ### `rafMergeTick`
 
 ```typescript
-import { rafMergeTick } from '@tony1185/astroneum'
+import { rafMergeTick } from '@tony01/astroneum'
 
 const cancel = rafMergeTick(incomingTick, (merged) => {
   chart.updateBar(merged)
@@ -257,8 +257,8 @@ OHLCV-aware frame coalescer for WebSocket burst handling. Merges all ticks arriv
 ### `EventBus`
 
 ```typescript
-import { EventBus } from '@tony1185/astroneum'
-import type { ChartEventMap } from '@tony1185/astroneum'
+import { EventBus } from '@tony01/astroneum'
+import type { ChartEventMap } from '@tony01/astroneum'
 
 const bus = new EventBus<ChartEventMap>()
 
@@ -272,8 +272,8 @@ Zero-dependency, type-safe synchronous event bus.
 ### `TickAnimator`
 
 ```typescript
-import { TickAnimator } from '@tony1185/astroneum'
-import type { TickAnimatorOptions } from '@tony1185/astroneum'
+import { TickAnimator } from '@tony01/astroneum'
+import type { TickAnimatorOptions } from '@tony01/astroneum'
 
 const opts: TickAnimatorOptions = { duration: 120 } // ms
 const animator = new TickAnimator(opts, (frame) => {
@@ -289,7 +289,7 @@ Smooth ease-out cubic interpolation of the last bar's `close`/`high`/`low` over 
 ### `RingBuffer`
 
 ```typescript
-import { RingBuffer } from '@tony1185/astroneum'
+import { RingBuffer } from '@tony01/astroneum'
 
 const buf = new RingBuffer<CandleData>(1000) // fixed capacity
 buf.push(candle)
@@ -386,7 +386,7 @@ import type {
 
   // PerformanceMode
   PerformanceBar,
-} from '@tony1185/astroneum'
+} from '@tony01/astroneum'
 ```
 
 ### `IndicatorDef`

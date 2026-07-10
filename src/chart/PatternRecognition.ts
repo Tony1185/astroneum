@@ -7,7 +7,7 @@ import type { CandleData, IndicatorPlugin, Viewport } from '@/types'
  * Patterns are grouped: single-bar, two-bar, three-bar.
  *
  * Usage:
- *   import { patternRecognitionPlugin, registerIndicatorPlugin } from '@tony1185/astroneum'
+ *   import { patternRecognitionPlugin, registerIndicatorPlugin } from '@tony01/astroneum'
  *   registerIndicatorPlugin(patternRecognitionPlugin)
  *   chart.createIndicator({ name: 'patterns', calcParams: [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1] })
  */

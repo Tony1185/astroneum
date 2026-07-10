@@ -4,7 +4,7 @@ import type { CandleData, IndicatorPlugin, Viewport } from '@/types'
  * Volume Profile indicator â€” horizontal histogram of volume at each price level.
  *
  * Usage:
- *   import { volumeProfilePlugin } from '@tony1185/astroneum'
+ *   import { volumeProfilePlugin } from '@tony01/astroneum'
  *   registerIndicatorPlugin(volumeProfilePlugin)
  *   chart.createIndicator({ name: 'volume_profile' })
  *

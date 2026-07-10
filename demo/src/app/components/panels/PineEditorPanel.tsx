@@ -2,7 +2,7 @@
 
 import './panels.css'
 import { useState, useCallback } from 'react'
-import { ScriptEngine } from '@tony1185/astroneum/script'
+import { ScriptEngine } from '@tony01/astroneum/script'
 
 const PLACEHOLDER = `// Astroneum Pine â€” JavaScript indicator
 // Available: ta.sma, ta.ema, ta.rsi, ta.macd, ta.bbands, ...

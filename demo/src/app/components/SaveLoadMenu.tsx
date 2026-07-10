@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback, type RefObject } from 'react'
-import { ChartTemplateManager, type AstroneumHandle } from '@tony1185/astroneum'
+import { ChartTemplateManager, type AstroneumHandle } from '@tony01/astroneum'
 
 interface SaveLoadMenuProps {
   chartRef: RefObject<AstroneumHandle | null>

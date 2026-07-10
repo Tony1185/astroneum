@@ -295,8 +295,8 @@ Declared in `/opt/astroneum/demo/package.json` as `"astroneum": "workspace:*"` (
 
 ### Mount
 ```tsx
-import { AstroneumChart, EventBus } from '@tony1185/astroneum'
-import { createStandardCryptoDatafeed } from '@tony1185/astroneum/datafeeds/crypto'
+import { AstroneumChart, EventBus } from '@tony01/astroneum'
+import { createStandardCryptoDatafeed } from '@tony01/astroneum/datafeeds/crypto'
 
 const bus = new EventBus()
 const datafeed = createStandardCryptoDatafeed({ exchange: 'binance' })

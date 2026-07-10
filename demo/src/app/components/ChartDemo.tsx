@@ -12,8 +12,8 @@ import {
   type SymbolInfo,
   type Period,
   type CandleData,
-} from '@tony1185/astroneum'
-import { AlertManager } from '@tony1185/astroneum'
+} from '@tony01/astroneum'
+import { AlertManager } from '@tony01/astroneum'
 
 interface IndicatorDef {
   name: string

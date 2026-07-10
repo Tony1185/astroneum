@@ -90,7 +90,7 @@ import {
   type AstroneumHandle,
   type Period,
   type SymbolInfo,
-} from '@tony1185/astroneum'
+} from '@tony01/astroneum'
 import 'astroneum/style.css'
 
 export default function App() {
@@ -135,37 +135,37 @@ export default function App() {
 
 ```tsx
 // Main entry
-import { AstroneumChart, DefaultDatafeed } from '@tony1185/astroneum'
+import { AstroneumChart, DefaultDatafeed } from '@tony01/astroneum'
 
 // Tree-shakeable subpaths
-import { BarReplay }            from '@tony1185/astroneum/replay'
-import { MultiChartLayout }     from '@tony1185/astroneum/multichart'
-import { MultiPeriodLayout }    from '@tony1185/astroneum'              // same symbol, stacked periods
-import { WatchlistManager }     from '@tony1185/astroneum/watchlist'
-import { PortfolioTracker }     from '@tony1185/astroneum/portfolio'
-import { AlertManager }         from '@tony1185/astroneum/alerts'
-import { ScriptEngine }         from '@tony1185/astroneum/script'
-import { UndoManager }          from '@tony1185/astroneum'
-import { ChartTemplateManager } from '@tony1185/astroneum'
-import { SessionVisualizer }    from '@tony1185/astroneum'
+import { BarReplay }            from '@tony01/astroneum/replay'
+import { MultiChartLayout }     from '@tony01/astroneum/multichart'
+import { MultiPeriodLayout }    from '@tony01/astroneum'              // same symbol, stacked periods
+import { WatchlistManager }     from '@tony01/astroneum/watchlist'
+import { PortfolioTracker }     from '@tony01/astroneum/portfolio'
+import { AlertManager }         from '@tony01/astroneum/alerts'
+import { ScriptEngine }         from '@tony01/astroneum/script'
+import { UndoManager }          from '@tony01/astroneum'
+import { ChartTemplateManager } from '@tony01/astroneum'
+import { SessionVisualizer }    from '@tony01/astroneum'
 
 // Datafeeds
-import { createStandardCryptoDatafeed, STANDARD_CRYPTO_SYMBOLS } from '@tony1185/astroneum/datafeeds/crypto'
-import { DefaultDatafeed, WebSocketDatafeed }                     from '@tony1185/astroneum/datafeeds/polygon'
+import { createStandardCryptoDatafeed, STANDARD_CRYPTO_SYMBOLS } from '@tony01/astroneum/datafeeds/crypto'
+import { DefaultDatafeed, WebSocketDatafeed }                     from '@tony01/astroneum/datafeeds/polygon'
 
 // Utilities
-import { heikinAshi }                     from '@tony1185/astroneum'  // OHLC â†’ Heikin-Ashi transform
-import { zigzag, detectSupportResistance } from '@tony1185/astroneum' // pattern detection
-import { resampleBars, forwardFill }      from '@tony1185/astroneum'  // multi-TF resampling
+import { heikinAshi }                     from '@tony01/astroneum'  // OHLC â†’ Heikin-Ashi transform
+import { zigzag, detectSupportResistance } from '@tony01/astroneum' // pattern detection
+import { resampleBars, forwardFill }      from '@tony01/astroneum'  // multi-TF resampling
 import { generateRenko, generateKagi,
          generateTickBars, generateRangeBars,
-         generatePointAndFigure }         from '@tony1185/astroneum'  // non-time-based bars
-import { transformCandles, untransformPrice } from '@tony1185/astroneum' // price scale transforms
+         generatePointAndFigure }         from '@tony01/astroneum'  // non-time-based bars
+import { transformCandles, untransformPrice } from '@tony01/astroneum' // price scale transforms
 
 // Plugins
 import { volumeProfilePlugin, domPlugin, zigzagPlugin,
-         pointAndFigurePlugin }           from '@tony1185/astroneum'  // registerIndicatorPlugin(...)
-import { createCompareIndicator }         from '@tony1185/astroneum'  // compare symbols overlay
+         pointAndFigurePlugin }           from '@tony01/astroneum'  // registerIndicatorPlugin(...)
+import { createCompareIndicator }         from '@tony01/astroneum'  // compare symbols overlay
 ```
 
 ## Browser Support
