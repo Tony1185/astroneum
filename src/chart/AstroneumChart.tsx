@@ -759,7 +759,22 @@ const AstroneumChart = forwardRef<AstroneumHandle, AstroneumChartProps>((props, 
           }}
           onClose={() => { setScriptEditorModalVisible(false) }} />
       )}
-      <PeriodBar
+      {Boolean(props.toolbarActionsRef && (props.toolbarActionsRef.current = {
+        toggleDrawingBar: () => {
+          startTransition(() => { ui.setDrawingBarVisible(value => !value) })
+          requestAnimationFrame(() => { widgetRef.current?.resize() })
+        },
+        openSymbolSearch: () => { ui.setSymbolSearchModalVisible(true) },
+        openIndicators: () => { ui.setIndicatorModalVisible(true) },
+        openTimezone: () => { ui.setTimezoneModalVisible(true) },
+        openSettings: () => { ui.setSettingModalVisible(true) },
+        openAlert: () => { setAlertModalVisible(true) },
+        captureScreenshot: () => {
+          if (!widgetRef.current) return
+          ui.setScreenshotUrl(widgetRef.current.getConvertPictureUrl(true, 'jpeg', theme === 'dark' ? '#151517' : '#ffffff'))
+        },
+      }))}
+      {props.toolbarVisible !== false && <PeriodBar
         locale={locale}
         symbol={chart.symbol()}
         spread={ui.drawingBarVisible()}
@@ -787,7 +802,7 @@ const AstroneumChart = forwardRef<AstroneumHandle, AstroneumChartProps>((props, 
             ui.setScreenshotUrl(url)
           }
         }}
-      />
+      />}
       <div className="astroneum-content">
         {ui.loadingVisible() && <Loading />}
         {ui.drawingBarVisible() && (

@@ -61,7 +61,8 @@ import {
   type SerializedChartState,
   type CandleData,
   type ChartPlugin,
-  type ChartPluginContext
+  type ChartPluginContext,
+  type ChartToolbarActions
 } from './types'
 
 overlays.forEach(o => { registerOverlay(o) })
@@ -117,7 +118,7 @@ export { RingBuffer } from './engine/common/RingBuffer'
 
 export type {
   Datafeed, SymbolInfo, Period, DatafeedSubscribeCallback, QuoteSnapshot, AstroneumOptions, AstroneumHandle, CandleData,
-  ChartPlugin, ChartPluginContext, SerializedChartState
+  ChartPlugin, ChartPluginContext, ChartToolbarActions, SerializedChartState
 }
 export type { Viewport, IndicatorPlugin, ChartEventMap, Price, Volume, Timestamp } from './types'
 // Note: CSS is shipped as a separate artifact (`astroneum/style.css`) built from

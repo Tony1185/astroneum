@@ -37,6 +37,32 @@
   background: var(--astroneum-popover-background-color);
 }
 
+.astroneum-workspace-toolbar-content {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+}
+
+.astroneum-workspace-toolbar-leading,
+.astroneum-workspace-toolbar-context,
+.astroneum-workspace-toolbar-actions {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: 100%;
+}
+
+.astroneum-workspace-toolbar-context {
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.astroneum-workspace-toolbar-actions {
+  margin-left: auto;
+}
+
 .astroneum-workspace-main {
   grid-area: main;
   min-width: 0;

@@ -76,6 +76,35 @@
   overflow: hidden;
 }
 
+.term-toolbar-control,
+.term-toolbar-icon,
+.term-toolbar-periods button {
+  height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--term-r-sm);
+  background: transparent;
+  color: var(--term-text-2);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.term-toolbar-control:hover,
+.term-toolbar-icon:hover,
+.term-toolbar-periods button:hover,
+.term-toolbar-periods button.is-active {
+  background: var(--term-elevated-bg);
+  color: var(--term-text);
+}
+
+.term-toolbar-periods {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  margin: 0 4px;
+}
+
 /* ── Workspace: chart + dock stacked in a single column. The chart's own
    left drawing rail (library-owned) is rendered inside .term-chart; the
    dock sits directly below it, inset by the same rail width (see .term-dock

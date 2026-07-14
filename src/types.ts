@@ -93,12 +93,24 @@ export interface Datafeed {
   getQuotes?(symbols: SymbolInfo[]): Promise<QuoteSnapshot[]>
 }
 
+export interface ChartToolbarActions {
+  toggleDrawingBar: () => void
+  openSymbolSearch: () => void
+  openIndicators: () => void
+  openTimezone: () => void
+  openSettings: () => void
+  openAlert: () => void
+  captureScreenshot: () => void
+}
+
 export interface AstroneumOptions {
   styles?: DeepPartial<Styles>
   watermark?: string | Node
   theme?: string
   locale?: string
   drawingBarVisible?: boolean
+  toolbarVisible?: boolean
+  toolbarActionsRef?: React.MutableRefObject<ChartToolbarActions | null>
   symbol: SymbolInfo
   period: Period
   periods?: Period[]

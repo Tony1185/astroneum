@@ -26,6 +26,23 @@ export interface WorkspaceShellProps {
   defaultDockHeight?: number
 }
 
+export interface WorkspaceToolbarProps {
+  children?: ReactNode
+  leading?: ReactNode
+  context?: ReactNode
+  actions?: ReactNode
+}
+
+export function WorkspaceToolbar ({ children, leading, context, actions }: WorkspaceToolbarProps) {
+  return (
+    <div className="astroneum-workspace-toolbar-content">
+      {leading && <div className="astroneum-workspace-toolbar-leading">{leading}</div>}
+      {context && <div className="astroneum-workspace-toolbar-context">{context}</div>}
+      {(actions || children) && <div className="astroneum-workspace-toolbar-actions">{actions}{children}</div>}
+    </div>
+  )
+}
+
 const SIDEBAR_MIN_WIDTH = 280
 const SIDEBAR_MAX_WIDTH = 540
 const DOCK_MIN_HEIGHT = 120

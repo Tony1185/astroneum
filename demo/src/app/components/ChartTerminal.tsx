@@ -22,11 +22,12 @@ import {
   type Period,
   type CandleData,
   type IndicatorSourceOption,
+  type ChartToolbarActions,
 } from '@tony01/astroneum'
 import { AlertManager } from '@tony01/astroneum'
 import type { BacktestResult } from '@tony01/astroneum'
 import type { CompiledStrategy } from '@tony01/astroneum/script'
-import { LayerProvider, WorkspaceShell, useWorkspaceShell } from '@tony01/astroneum/workspace'
+import { LayerProvider, WorkspaceShell, WorkspaceToolbar, useWorkspaceShell } from '@tony01/astroneum/workspace'
 import WatchlistPanel, { AlertsPanel } from './panels/WatchlistPanel'
 import PineEditorPanel, { StrategyTesterPanel, TradingPanel, StubPanel } from './panels/PineEditorPanel'
 import DateRangeNavigator from './DateRangeNavigator'
@@ -326,6 +327,7 @@ type ChartEngine = ChartPluginContext['chart']
 // â”€â”€ Main terminal component â”€â”€
 export default function ChartTerminal() {
   const chartRef = useRef<AstroneumHandle>(null)
+  const chartToolbarRef = useRef<ChartToolbarActions | null>(null)
   const symbols = STANDARD_CRYPTO_SYMBOLS
   const [chartEngine, setChartEngine] = useState<ChartEngine | null>(null)
 
@@ -510,9 +512,21 @@ export default function ChartTerminal() {
 
   // â”€â”€ Topbar content (brand bar â€” the chart's own PeriodBar owns symbol/period/indicators/alert/screenshot/settings) â”€â”€
   const topbar = (
-    <>
-      <span className="term-brand">Astroneum</span>
-      <span className="term-source-badge">{sourceBadgeText}</span>
+    <WorkspaceToolbar
+      leading={<><span className="term-brand">Astroneum</span><span className="term-source-badge">{sourceBadgeText}</span></>}
+      context={<>
+        <button className="term-toolbar-control" onClick={() => chartToolbarRef.current?.openSymbolSearch()}>{symbol.shortName ?? symbol.ticker}</button>
+        <div className="term-toolbar-periods">{PERIODS.map(item => <button key={item.text} className={item.text === period.text ? 'is-active' : ''} onClick={() => handlePeriodChange(item)}>{item.text}</button>)}</div>
+        <button className="term-toolbar-control" onClick={() => chartToolbarRef.current?.openIndicators()}>Indicators</button>
+        <button className="term-toolbar-icon" onClick={() => chartToolbarRef.current?.openAlert()} aria-label="Create alert">Alert</button>
+        <button className="term-toolbar-icon" onClick={() => chartToolbarRef.current?.toggleDrawingBar()} aria-label="Toggle drawing tools">Draw</button>
+      </>}
+      actions={<>
+        <button className="term-toolbar-icon" onClick={() => chartToolbarRef.current?.openTimezone()} aria-label="Timezone">TZ</button>
+        <button className="term-toolbar-icon" onClick={() => chartToolbarRef.current?.captureScreenshot()} aria-label="Take screenshot">Shot</button>
+        <button className="term-toolbar-icon" onClick={() => chartToolbarRef.current?.openSettings()} aria-label="Chart settings">Settings</button>
+      </>}
+    >
       {datafeedError && <span className="term-error-badge" title={datafeedError}>{datafeedError}</span>}
       <div className="term-spacer" />
       <button
@@ -606,7 +620,7 @@ export default function ChartTerminal() {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 109.8 9.8z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></svg>
         )}
       </button>
-    </>
+    </WorkspaceToolbar>
   )
 
   // â”€â”€ Chart cell â€” single or multi-chart depending on layout selection â”€â”€
@@ -624,6 +638,8 @@ export default function ChartTerminal() {
       {layoutCount === 1 ? (
         <AstroneumChart
           ref={chartRef}
+          toolbarActionsRef={chartToolbarRef}
+          toolbarVisible={false}
           symbol={symbol}
           period={period}
           periods={PERIODS}
