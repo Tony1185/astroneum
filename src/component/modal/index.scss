@@ -6,6 +6,18 @@
 // Token fallback chain: --term-* (demo :root) → --astroneum-* (library .astroneum) → hardcoded dark.
 
 .#{$prefix-cls}-modal {
+  // ── Token bridge ──
+  // Map --astroneum-* from --term-* (demo :root) so child components
+  // (Dropdown, Checkbox, Input) inherit correct tokens in portal context.
+  --astroneum-primary-color: var(--term-accent, #6366f1);
+  --astroneum-background-color: var(--term-app-bg, #131722);
+  --astroneum-popover-background-color: var(--term-panel-bg, #1e222d);
+  --astroneum-hover-background-color: var(--term-elevated-bg, #2a2e39);
+  --astroneum-text-color: var(--term-text, #d1d4dc);
+  --astroneum-text-second-color: var(--term-text-2, #787b86);
+  --astroneum-border-color: var(--term-border, #2a2e39);
+  --astroneum-selected-color: var(--term-accent-tint, rgba(99, 102, 241, 0.15));
+
   &.modal {
     z-index: 10000;
     overflow: hidden;
