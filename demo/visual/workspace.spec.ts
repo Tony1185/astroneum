@@ -36,6 +36,10 @@ test('toolbar dialogs register with the workspace layer manager', async ({ page 
   const symbolTrigger = page.locator('.term-toolbar-control').first()
   await symbolTrigger.click()
   await expect(page.locator('.astroneum-symbol-search-modal')).toBeVisible()
+  await expect(page.locator('.astroneum-modal')).toHaveCSS('position', 'fixed')
+  await expect(page.locator('.astroneum-modal .modal-card')).toHaveScreenshot('symbol-search-dialog.png', {
+    mask: [page.locator('.astroneum-symbol-search-modal-results')],
+  })
   await page.keyboard.press('Escape')
   await expect(page.locator('.astroneum-symbol-search-modal')).toBeHidden()
 

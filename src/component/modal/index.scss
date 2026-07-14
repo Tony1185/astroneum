@@ -19,16 +19,28 @@
   --astroneum-selected-color: var(--term-accent-tint, rgba(99, 102, 241, 0.15));
 
   &.modal {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
     z-index: 10000;
     overflow: hidden;
     animation: astroneum-modal-backdrop-in 0.18s ease forwards;
   }
 
   .modal-background {
+    position: absolute;
+    inset: 0;
     background-color: var(--term-backdrop, rgba(0, 0, 0, 0.5));
   }
 
   .modal-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100dvh - 40px);
     border-radius: 8px;
     border: 1px solid var(--term-border, var(--astroneum-border-color, #2a2e39));
     box-shadow: 0 16px 48px 0 rgba(0, 0, 0, 0.55);
@@ -37,6 +49,9 @@
   }
 
   .modal-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     background-color: var(--term-panel-bg, var(--astroneum-popover-background-color, #1e222d));
     border-bottom: 1px solid var(--term-border, var(--astroneum-border-color, #2a2e39));
     padding: 0 16px 0 20px;
@@ -60,9 +75,12 @@
     background-color: var(--term-panel-bg, var(--astroneum-popover-background-color, #1e222d));
     padding: 16px 20px;
     overflow-y: auto;
+    flex: 1 1 auto;
   }
 
   .modal-card-foot {
+    display: flex;
+    align-items: center;
     background-color: var(--term-panel-bg, var(--astroneum-popover-background-color, #1e222d));
     border-top: 1px solid var(--term-border, var(--astroneum-border-color, #2a2e39));
     padding: 12px 20px;
@@ -74,6 +92,11 @@
   }
 
   .delete {
+    position: relative;
+    display: block;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
     width: 32px;
     height: 32px;
     border-radius: 6px;
@@ -81,8 +104,16 @@
     flex-shrink: 0;
     transition: background-color 0.12s;
     &::before, &::after {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 14px;
+      height: 1px;
+      content: '';
       background-color: var(--term-text-2, var(--astroneum-text-second-color, #787b86));
     }
+    &::before { transform: translate(-50%, -50%) rotate(45deg); }
+    &::after { transform: translate(-50%, -50%) rotate(-45deg); }
     &:hover {
       background-color: var(--term-elevated-bg, var(--astroneum-hover-background-color, #2a2e39));
       &::before, &::after {
