@@ -66,55 +66,6 @@
     height: 30px;
     width: 2rem;
   }
-  // Modal card
-  .modal-card-head {
-    background-color: var(--astroneum-popover-background-color);
-    border-bottom-color: var(--astroneum-border-color);
-    padding: 0 16px 0 20px;
-    height: 48px;
-    min-height: unset;
-    flex-shrink: 0;
-    border-top-left-radius: 8px;
-    border-top-right-radius: 8px;
-  }
-  .modal-card-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--astroneum-text-color);
-    flex-grow: 1;
-    letter-spacing: -0.01em;
-  }
-  .modal-card-body {
-    background-color: var(--astroneum-popover-background-color);
-    padding: 16px 20px;
-    overflow-y: auto;
-  }
-  .modal-card-foot {
-    background-color: var(--astroneum-popover-background-color);
-    border-top-color: var(--astroneum-border-color);
-    padding: 12px 20px;
-    justify-content: flex-end;
-    border-bottom-left-radius: 8px;
-    border-bottom-right-radius: 8px;
-    gap: 8px;
-  }
-  .delete {
-    width: 32px;
-    height: 32px;
-    border-radius: 6px;
-    background-color: transparent;
-    flex-shrink: 0;
-    transition: background-color 0.12s;
-    &::before, &::after {
-      background-color: var(--astroneum-text-second-color);
-    }
-    &:hover {
-      background-color: var(--astroneum-hover-background-color);
-      &::before, &::after {
-        background-color: var(--astroneum-text-color);
-      }
-    }
-  }
 
   // — Dark theme —
   &[data-theme="dark"] {

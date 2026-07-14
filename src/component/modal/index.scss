@@ -1,28 +1,84 @@
 @use '../../styles/base' as *;
 
+// ── Self-contained modal styles ──
+// Scoped to .astroneum-modal, NOT .astroneum, so portals to document.body
+// still receive correct card/head/body/foot/delete/button/input styling.
+// Token fallback chain: --term-* (demo :root) → --astroneum-* (library .astroneum) → hardcoded dark.
+
 .#{$prefix-cls}-modal {
   &.modal {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    left: 0;
-    top: 0;
-    z-index: 99;
+    z-index: 10000;
     overflow: hidden;
     animation: astroneum-modal-backdrop-in 0.18s ease forwards;
   }
+
   .modal-background {
-    position: absolute;
-    background-color: rgba(0, 0, 0, .45);
+    background-color: var(--term-backdrop, rgba(0, 0, 0, 0.5));
   }
+
   .modal-card {
     border-radius: 8px;
-    border: solid 1px var(--astroneum-border-color);
-    box-shadow: 0 16px 48px 0 rgba(0, 0, 0, .55);
-    max-height: calc(100% - 40px);
-    width: unset;
+    border: 1px solid var(--term-border, var(--astroneum-border-color, #2a2e39));
+    box-shadow: 0 16px 48px 0 rgba(0, 0, 0, 0.55);
+    background-color: var(--term-panel-bg, var(--astroneum-popover-background-color, #1e222d));
     animation: astroneum-modal-card-in 0.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   }
+
+  .modal-card-head {
+    background-color: var(--term-panel-bg, var(--astroneum-popover-background-color, #1e222d));
+    border-bottom: 1px solid var(--term-border, var(--astroneum-border-color, #2a2e39));
+    padding: 0 16px 0 20px;
+    height: 48px;
+    min-height: unset;
+    flex-shrink: 0;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+  }
+
+  .modal-card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--term-text, var(--astroneum-text-color, #d1d4dc));
+    flex-grow: 1;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+
+  .modal-card-body {
+    background-color: var(--term-panel-bg, var(--astroneum-popover-background-color, #1e222d));
+    padding: 16px 20px;
+    overflow-y: auto;
+  }
+
+  .modal-card-foot {
+    background-color: var(--term-panel-bg, var(--astroneum-popover-background-color, #1e222d));
+    border-top: 1px solid var(--term-border, var(--astroneum-border-color, #2a2e39));
+    padding: 12px 20px;
+    justify-content: flex-end;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .delete {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    background-color: transparent;
+    flex-shrink: 0;
+    transition: background-color 0.12s;
+    &::before, &::after {
+      background-color: var(--term-text-2, var(--astroneum-text-second-color, #787b86));
+    }
+    &:hover {
+      background-color: var(--term-elevated-bg, var(--astroneum-hover-background-color, #2a2e39));
+      &::before, &::after {
+        background-color: var(--term-text, var(--astroneum-text-color, #d1d4dc));
+      }
+    }
+  }
+
   .modal-back-btn {
     display: flex;
     align-items: center;
@@ -34,12 +90,45 @@
     border: 0;
     border-radius: 4px;
     background: transparent;
-    color: var(--astroneum-text-second-color);
+    color: var(--term-text-2, var(--astroneum-text-second-color, #787b86));
     cursor: pointer;
     transition: background-color 0.15s, color 0.15s;
     &:hover {
-      background: var(--astroneum-hover-background-color);
-      color: var(--astroneum-text-color);
+      background: var(--term-elevated-bg, var(--astroneum-hover-background-color, #2a2e39));
+      color: var(--term-text, var(--astroneum-text-color, #d1d4dc));
+    }
+  }
+
+  // Button / Input overrides for portaled modals (would otherwise lose .astroneum-scoped styles)
+  .button:not([class*="is-"]) {
+    color: var(--term-text, var(--astroneum-text-color, #d1d4dc));
+    border-color: var(--term-border, var(--astroneum-border-color, #2a2e39));
+    background-color: transparent;
+    box-shadow: none;
+    &:hover {
+      border-color: var(--term-text-2, var(--astroneum-text-second-color, #787b86));
+      background-color: transparent;
+      color: var(--term-text, var(--astroneum-text-color, #d1d4dc));
+    }
+    &:focus {
+      border-color: var(--term-accent, var(--astroneum-primary-color, #6366f1));
+      box-shadow: none;
+    }
+  }
+
+  .input, textarea {
+    color: var(--term-text, var(--astroneum-text-color, #d1d4dc));
+    background-color: var(--term-app-bg, var(--astroneum-background-color, #131722));
+    border-color: var(--term-border, var(--astroneum-border-color, #2a2e39));
+    font-family: inherit;
+    font-size: 13px;
+    box-shadow: none;
+    &::placeholder {
+      color: var(--term-text-2, var(--astroneum-text-second-color, #787b86));
+    }
+    &:focus, &.is-focused {
+      border-color: var(--term-accent, var(--astroneum-primary-color, #6366f1));
+      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
     }
   }
 }
