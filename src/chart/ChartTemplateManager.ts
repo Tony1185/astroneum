@@ -12,9 +12,7 @@ export interface ChartTemplate {
 /**
  * ChartTemplateManager — save/load named chart configurations.
  *
- * Templates persist to localStorage and include theme, locale, timezone,
- * styles, indicators, and overlay state. Symbols and periods are intentionally
- * NOT included — templates apply chart settings to any symbol.
+ * Templates persist the complete chart state to localStorage.
  *
  * Usage:
  *   const templates = ChartTemplateManager.getInstance()
@@ -38,18 +36,12 @@ export class ChartTemplateManager {
 
   /** Save current chart state as a named template. Overwrites if name exists. */
   save(name: string, state: SerializedChartState): ChartTemplate {
-    // Remove symbol/period from template — these are chart-specific
-    const cleanState: SerializedChartState = {
-      ...state,
-      symbol: { ticker: '' },
-      period: { multiplier: 1, timespan: 'minute', text: '1m' },
-    }
 
     const existing = this._templates.findIndex(t => t.name === name)
     const template: ChartTemplate = {
       id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       name: name.trim(),
-      state: cleanState,
+      state,
       createdAt: new Date().toISOString(),
     }
 
@@ -98,9 +90,7 @@ export class ChartTemplateManager {
   }
 
   private _persist(): void {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this._templates))
-    } catch { /* quota exceeded */ }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(this._templates))
   }
 
   private _load(): void {

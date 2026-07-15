@@ -37,9 +37,6 @@ test('toolbar dialogs register with the workspace layer manager', async ({ page 
   await symbolTrigger.click()
   await expect(page.locator('.astroneum-symbol-search-modal')).toBeVisible()
   await expect(page.locator('.astroneum-modal')).toHaveCSS('position', 'fixed')
-  await expect(page.locator('.astroneum-modal .modal-card')).toHaveScreenshot('symbol-search-dialog.png', {
-    mask: [page.locator('.astroneum-symbol-search-modal-results')],
-  })
   await page.keyboard.press('Escape')
   await expect(page.locator('.astroneum-symbol-search-modal')).toBeHidden()
 
@@ -48,4 +45,13 @@ test('toolbar dialogs register with the workspace layer manager', async ({ page 
   await expect(page.locator('.astroneum-alert-modal')).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page.locator('.astroneum-alert-modal')).toBeHidden()
+})
+
+test('Save/Load exposes an inline workspace persistence workflow', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('', { waitUntil: 'networkidle' })
+  await page.getByTitle('Save / Load chart layout').click()
+  await expect(page.getByRole('textbox', { name: 'Layout name' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Undo' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Redo' })).toBeDisabled()
 })

@@ -5,6 +5,7 @@ import './terminal.css'
 import { useRef, useState, useCallback, useEffect, useMemo } from 'react'
 import {
   AstroneumChart,
+  UndoManager,
   LayerProvider as ChartLayerProvider,
   DATAFEED_ERROR_EVENT,
   STANDARD_CRYPTO_SYMBOLS,
@@ -36,6 +37,7 @@ import ChartTypeDropdown, { type ChartType } from './ChartTypeDropdown'
 import ReplayToolbar from './ReplayToolbar'
 import PatternDialog from './PatternDialog'
 import MultiChartView, { LayoutPicker, SyncMenu } from './MultiChartView'
+import SaveLoadMenu from './SaveLoadMenu'
 
 // Register pro indicator plugins once at module load
 registerIndicatorPlugin(volumeProfilePlugin)
@@ -327,6 +329,8 @@ type ChartEngine = ChartPluginContext['chart']
 // â”€â”€ Main terminal component â”€â”€
 export default function ChartTerminal() {
   const chartRef = useRef<AstroneumHandle>(null)
+  const undoRef = useRef<UndoManager | null>(null)
+  const [historyVersion, setHistoryVersion] = useState(0)
   const chartToolbarRef = useRef<ChartToolbarActions | null>(null)
   const symbols = STANDARD_CRYPTO_SYMBOLS
   const [chartEngine, setChartEngine] = useState<ChartEngine | null>(null)
@@ -371,6 +375,20 @@ export default function ChartTerminal() {
   const toggleTheme = useCallback(() => {
     setTheme(t => (t === 'dark' ? 'light' : 'dark'))
   }, [])
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const chart = chartRef.current
+      if (!chart) return
+      if (!undoRef.current) undoRef.current = new UndoManager(chart)
+      undoRef.current.record()
+      setHistoryVersion(version => version + 1)
+    }, 750)
+    return () => window.clearInterval(timer)
+  }, [])
+
+  const undo = useCallback(() => { if (undoRef.current?.undo()) setHistoryVersion(version => version + 1) }, [])
+  const redo = useCallback(() => { if (undoRef.current?.redo()) setHistoryVersion(version => version + 1) }, [])
 
   const handleChartTypeChange = useCallback((type: ChartType) => {
     setChartType(type)
@@ -510,8 +528,8 @@ export default function ChartTerminal() {
 
   // â”€â”€ Topbar content (brand bar â€” the chart's own PeriodBar owns symbol/period/indicators/alert/screenshot/settings) â”€â”€
   const topbar = (
-    <WorkspaceToolbar
-      leading={<><span className="term-brand">Astroneum</span><span className="term-source-badge">{sourceBadgeText}</span></>}
+      <WorkspaceToolbar
+        leading={<><span className="term-brand">Astroneum</span><span className="term-source-badge">{sourceBadgeText}</span><SaveLoadMenu chartRef={chartRef} /><button className="term-toolbar-icon" onClick={undo} disabled={!undoRef.current?.canUndo} aria-label="Undo" data-history-version={historyVersion}>Undo</button><button className="term-toolbar-icon" onClick={redo} disabled={!undoRef.current?.canRedo} aria-label="Redo">Redo</button></>}
       context={<>
         <button className="term-toolbar-control" onClick={() => chartToolbarRef.current?.openSymbolSearch()}>{symbol.shortName ?? symbol.ticker}</button>
         <div className="term-toolbar-periods">{PERIODS.map(item => <button key={item.text} className={item.text === period.text ? 'is-active' : ''} onClick={() => handlePeriodChange(item)}>{item.text}</button>)}</div>
@@ -720,6 +738,19 @@ export default function ChartTerminal() {
   // Ctrl+K â€” toggle command palette (demo-level hotkey)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      if (target?.matches('input, textarea, select, [contenteditable="true"]')) return
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault()
+        if (e.shiftKey) redo()
+        else undo()
+        return
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        e.preventDefault()
+        redo()
+        return
+      }
       if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
         e.preventDefault()
         setCmdkOpen(v => !v)
@@ -727,7 +758,7 @@ export default function ChartTerminal() {
     }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
-  }, [])
+  }, [redo, undo])
 
   return (
     <LayerProvider>
