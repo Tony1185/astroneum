@@ -3,6 +3,7 @@
 import './enhancements.css'
 import { useState, useRef, useEffect } from 'react'
 import { MultiChartLayout, type MultiChartCount, type AstroneumHandle, type SymbolInfo, type Period, type Datafeed } from '@tony01/astroneum'
+import type { ChartType } from './ChartTypeDropdown'
 
 interface MultiChartViewProps {
   datafeed: Datafeed
@@ -10,6 +11,7 @@ interface MultiChartViewProps {
   period: Period
   periods: Period[]
   theme: string
+  chartType: ChartType
   count: MultiChartCount
   syncCrosshair: boolean
   syncSymbolPeriod: boolean
@@ -17,7 +19,7 @@ interface MultiChartViewProps {
 }
 
 export default function MultiChartView({
-  datafeed, symbol, period, periods, theme, count, syncCrosshair, syncSymbolPeriod, onActiveChartChange
+  datafeed, symbol, period, periods, theme, chartType, count, syncCrosshair, syncSymbolPeriod, onActiveChartChange
 }: MultiChartViewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const layoutRef = useRef<MultiChartLayout | null>(null)
@@ -32,6 +34,8 @@ export default function MultiChartView({
       periods,
       datafeed,
       theme,
+      barStyle: chartType === 'heikin_ashi' ? 'heikin_ashi' : 'candle',
+      styles: chartType === 'heikin_ashi' ? undefined : { candle: { type: chartType } as never },
       drawingBarVisible: false,
       syncCrosshair,
       syncSymbolPeriod,
@@ -43,7 +47,7 @@ export default function MultiChartView({
       layout.destroy()
       layoutRef.current = null
     }
-  }, [count, datafeed, symbol, period, periods, theme, syncCrosshair, syncSymbolPeriod])
+  }, [chartType, count, datafeed, symbol, period, periods, theme, syncCrosshair, syncSymbolPeriod])
 
   return <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
 }

@@ -24,6 +24,7 @@ export interface WorkspaceShellProps {
   defaultDockOpen?: boolean
   defaultSidebarWidth?: number
   defaultDockHeight?: number
+  storageKey?: string | null
 }
 
 export interface WorkspaceToolbarProps {
@@ -58,6 +59,31 @@ export function useWorkspaceShell (): WorkspaceShellContextValue {
 
 function clamp (value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
+}
+
+interface PersistedWorkspaceShell {
+  sidebarOpen?: boolean
+  sidebarWidth?: number
+  dockOpen?: boolean
+  dockMaximized?: boolean
+  dockHeight?: number
+}
+
+function loadWorkspaceShell (key: string): PersistedWorkspaceShell | null {
+  try {
+    const raw = localStorage.getItem(key)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    return parsed && typeof parsed === 'object' ? parsed as PersistedWorkspaceShell : null
+  } catch {
+    return null
+  }
+}
+
+function saveWorkspaceShell (key: string, value: PersistedWorkspaceShell): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+  } catch { }
 }
 
 function ResizeSeparator ({
@@ -128,6 +154,7 @@ export default function WorkspaceShell ({
   defaultDockOpen = true,
   defaultSidebarWidth = 320,
   defaultDockHeight = 220,
+  storageKey = null,
 }: WorkspaceShellProps) {
   const sidebarId = useId()
   const dockId = useId()
@@ -136,6 +163,7 @@ export default function WorkspaceShell ({
   const [dockOpen, setDockOpen] = useState(defaultDockOpen)
   const [dockMaximized, setDockMaximized] = useState(false)
   const [dockHeight, setDockHeightState] = useState(() => clamp(defaultDockHeight, DOCK_MIN_HEIGHT, DOCK_MAX_HEIGHT))
+  const [loadedStorageKey, setLoadedStorageKey] = useState<string | null | undefined>(undefined)
 
   const setSidebarWidth = useCallback((width: number) => setSidebarWidthState(clamp(width, SIDEBAR_MIN_WIDTH, SIDEBAR_MAX_WIDTH)), [])
   const setDockHeight = useCallback((height: number) => setDockHeightState(clamp(height, DOCK_MIN_HEIGHT, DOCK_MAX_HEIGHT)), [])
@@ -152,6 +180,27 @@ export default function WorkspaceShell ({
   useEffect(() => {
     if (!dockOpen) setDockMaximized(false)
   }, [dockOpen])
+
+  useEffect(() => {
+    if (!storageKey) {
+      setLoadedStorageKey(null)
+      return
+    }
+    const saved = loadWorkspaceShell(storageKey)
+    if (saved) {
+      if (typeof saved.sidebarOpen === 'boolean') setSidebarOpen(saved.sidebarOpen)
+      if (typeof saved.sidebarWidth === 'number') setSidebarWidthState(clamp(saved.sidebarWidth, SIDEBAR_MIN_WIDTH, SIDEBAR_MAX_WIDTH))
+      if (typeof saved.dockOpen === 'boolean') setDockOpen(saved.dockOpen)
+      if (typeof saved.dockMaximized === 'boolean') setDockMaximized(saved.dockMaximized)
+      if (typeof saved.dockHeight === 'number') setDockHeightState(clamp(saved.dockHeight, DOCK_MIN_HEIGHT, DOCK_MAX_HEIGHT))
+    }
+    setLoadedStorageKey(storageKey)
+  }, [storageKey])
+
+  useEffect(() => {
+    if (!storageKey || loadedStorageKey !== storageKey) return
+    saveWorkspaceShell(storageKey, { sidebarOpen, sidebarWidth, dockOpen, dockMaximized, dockHeight })
+  }, [dockHeight, dockMaximized, dockOpen, loadedStorageKey, sidebarOpen, sidebarWidth, storageKey])
 
   const context: WorkspaceShellContextValue = {
     sidebarOpen,

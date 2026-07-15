@@ -4,7 +4,7 @@ import { flushSync } from 'react-dom'
 
 import AstroneumChart from './AstroneumChart'
 
-import type { AstroneumOptions, AstroneumHandle, SymbolInfo, Period } from '@/types'
+import type { AstroneumOptions, AstroneumHandle, SymbolInfo, Period, SerializedChartState } from '@/types'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -47,7 +47,7 @@ export interface MultiChartLayoutOptions extends Omit<AstroneumOptions, 'symbol'
 /** A single chart entry inside the layout. */
 interface ChartEntry {
   container: HTMLDivElement
-  instance: AstroneumHandle
+  instance: AstroneumHandle | null
   root: Root
 }
 
@@ -74,6 +74,18 @@ function getGrid(count: MultiChartCount): GridDef {
 interface PersistedLayout {
   count: MultiChartCount
   slots: MultiChartSlot[]
+  states?: Array<SerializedChartState | null>
+  activeIndex?: number
+}
+
+function isMultiChartCount (value: unknown): value is MultiChartCount {
+  return value === 2 || value === 4 || value === 8 || value === 16
+}
+
+function isSerializedChartState (value: unknown): value is SerializedChartState {
+  if (value === null || typeof value !== 'object') return false
+  const state = value as Record<string, unknown>
+  return state.version === 1 && state.symbol !== null && typeof state.symbol === 'object' && state.period !== null && typeof state.period === 'object'
 }
 
 function saveLayout(key: string, data: PersistedLayout): void {
@@ -123,10 +135,15 @@ export default class MultiChartLayout {
   private _syncSymbolPeriod: boolean
   private _activeIndex = 0
   private _wrapperEl: HTMLDivElement | null = null
+  private _states: Array<SerializedChartState | null> = []
+  private _persistTimer: number | null = null
+  private _restoreTimer: number | null = null
+  private _readyTimer: number | null = null
+  private _restorePending = false
+  private _lastPersisted = ''
 
   constructor(options: MultiChartLayoutOptions) {
     this._options = options
-    this._count = options.count ?? 2
     this._storageKey = options.storageKey !== undefined ? options.storageKey : 'astroneum-multi-layout'
     this._syncCrosshair = options.syncCrosshair ?? true
     this._syncSymbolPeriod = options.syncSymbolPeriod ?? false
@@ -146,16 +163,21 @@ export default class MultiChartLayout {
       persisted = loadLayout(this._storageKey)
     }
 
-    this._count = persisted?.count ?? this._count
+    this._count = options.count ?? (isMultiChartCount(persisted?.count) ? persisted.count : 2)
 
     // Build default slots
+    const savedStates = Array.isArray(persisted?.states) ? persisted.states : []
+    this._states = Array.from({ length: this._count }, (_, i) => isSerializedChartState(savedStates[i]) ? savedStates[i] : null)
+    this._activeIndex = Math.max(0, Math.min(typeof persisted?.activeIndex === 'number' ? persisted.activeIndex : 0, this._count - 1))
     const defaultSlot: MultiChartSlot = { symbol: options.symbol, period: options.period }
     const explicitSlots = options.slots ?? []
-    this._slots = Array.from({ length: this._count }, (_, i) =>
-      persisted?.slots[i] ?? explicitSlots[i] ?? defaultSlot
-    )
+    this._slots = Array.from({ length: this._count }, (_, i) => {
+      const state = this._states[i]
+      return state ? { symbol: state.symbol, period: state.period } : persisted?.slots[i] ?? explicitSlots[i] ?? defaultSlot
+    })
 
     this._render()
+    if (this._storageKey) this._persistTimer = window.setInterval(() => this._persist(), 1_500)
   }
 
   // -------------------------------------------------------------------------
@@ -163,7 +185,7 @@ export default class MultiChartLayout {
   // -------------------------------------------------------------------------
 
   private _render(): void {
-    // Clean up any existing charts
+    if (!this._restorePending) this._captureStates()
     this._destroy()
 
     const { cols, rows } = getGrid(this._count)
@@ -211,45 +233,42 @@ export default class MultiChartLayout {
         drawingBarVisible: false // in multi-layout, drawing bar takes too much space
       }
 
-      let chartHandle: AstroneumHandle | null = null
       const root = createRoot(cellEl)
+      const entry: ChartEntry = { container: cellEl, instance: null, root }
       flushSync(() => {
         root.render(
           React.createElement(AstroneumChart, {
             ...slotOptions,
-            ref: (chart: AstroneumHandle | null) => { if (chart) chartHandle = chart }
+            ref: (chart: AstroneumHandle | null) => { entry.instance = chart }
           })
         )
       })
-      if (!chartHandle) throw new Error('MultiChartLayout: chart initialization failed')
-      this._charts.push({ container: cellEl, instance: chartHandle, root })
-    }
-
-    // Wire crosshair sync: when any chart's crosshair moves, propagate to all
-    // others at the same timestamp so they show synchronized crosshairs.
-    if (this._syncCrosshair && this._charts.length > 1) {
-      for (let i = 0; i < this._charts.length; i++) {
-        const chart = this._charts[i].instance
-        chart.onCrosshairMove((data: unknown) => {
-          if (data === null) {
-            // Clear crosshair on all other charts too
-            for (let j = 0; j < this._charts.length; j++) {
-              if (j === i) continue
-              this._charts[j].instance.setCrosshair(null)
-            }
-            return
-          }
-          // Propagate to all other charts
-          for (let j = 0; j < this._charts.length; j++) {
-            if (j === i) continue
-            this._charts[j].instance.setCrosshair(data)
-          }
-        })
-      }
+      this._charts.push(entry)
     }
 
     this._container.innerHTML = ''
     this._container.appendChild(wrapper)
+    this._initializeCharts()
+  }
+
+  private _initializeCharts(): void {
+    if (this._charts.some(chart => chart.instance === null)) {
+      this._readyTimer = window.setTimeout(() => this._initializeCharts(), 16)
+      return
+    }
+    if (this._syncCrosshair && this._charts.length > 1) {
+      for (let i = 0; i < this._charts.length; i++) {
+        const chart = this._charts[i].instance!
+        chart.onCrosshairMove((data: unknown) => {
+          for (let j = 0; j < this._charts.length; j++) {
+            if (j === i) continue
+            this._charts[j].instance?.setCrosshair(data)
+          }
+        })
+      }
+    }
+    this._readyTimer = null
+    this._restoreStates()
   }
 
   private _setActive(index: number): void {
@@ -262,9 +281,18 @@ export default class MultiChartLayout {
     if (next) {
       next.container.style.outline = '2px solid #1677ff'
     }
+    this._persist()
   }
 
   private _destroy(): void {
+    if (this._restoreTimer !== null) {
+      window.clearTimeout(this._restoreTimer)
+      this._restoreTimer = null
+    }
+    if (this._readyTimer !== null) {
+      window.clearTimeout(this._readyTimer)
+      this._readyTimer = null
+    }
     for (const { root } of this._charts) {
       root.unmount()
     }
@@ -277,7 +305,37 @@ export default class MultiChartLayout {
 
   private _persist(): void {
     if (!this._storageKey) return
-    saveLayout(this._storageKey, { count: this._count, slots: this._slots })
+    if (!this._restorePending) this._captureStates()
+    const data: PersistedLayout = { count: this._count, slots: this._slots, states: this._states, activeIndex: this._activeIndex }
+    const serialized = JSON.stringify(data)
+    if (serialized === this._lastPersisted) return
+    saveLayout(this._storageKey, data)
+    this._lastPersisted = serialized
+  }
+
+  private _captureStates(): void {
+    if (this._charts.length === 0 || this._charts.some(chart => chart.instance === null)) return
+    const states = this._charts.map(chart => chart.instance!.serializeState())
+    this._states = states
+    this._slots = states.map(state => ({ symbol: state.symbol, period: state.period }))
+  }
+
+  private _restoreStates(): void {
+    if (!this._states.some(state => state !== null)) return
+    this._restorePending = true
+    const restore = () => {
+      if (this._charts.some(chart => chart.instance === null || chart.instance.getIndicators().length === 0)) {
+        this._restoreTimer = window.setTimeout(restore, 100)
+        return
+      }
+      this._states.forEach((state, index) => {
+        if (state) this._charts[index]?.instance?.loadState(state)
+      })
+      this._restorePending = false
+      this._restoreTimer = null
+      this._persist()
+    }
+    restore()
   }
 
   // -------------------------------------------------------------------------
@@ -286,6 +344,7 @@ export default class MultiChartLayout {
 
   /** Change the layout grid (2 | 4 | 8 | 16). Re-renders all charts. */
   setCount(count: MultiChartCount): void {
+    if (!this._restorePending) this._captureStates()
     this._count = count
     // Resize slots array
     const defaultSlot: MultiChartSlot = { symbol: this._options.symbol, period: this._options.period }
@@ -293,6 +352,10 @@ export default class MultiChartLayout {
       this._slots.push(defaultSlot)
     }
     this._slots = this._slots.slice(0, count)
+    while (this._states.length < count) {
+      this._states.push(null)
+    }
+    this._states = this._states.slice(0, count)
     this._activeIndex = Math.min(this._activeIndex, count - 1)
     this._render()
     this._persist()
@@ -305,12 +368,12 @@ export default class MultiChartLayout {
 
   /** Get the chart instance at a given index. */
   getChart(index: number): AstroneumHandle | undefined {
-    return this._charts[index]?.instance
+    return this._charts[index]?.instance ?? undefined
   }
 
   /** Get all chart instances. */
   getAllCharts(): AstroneumHandle[] {
-    return this._charts.map(c => c.instance)
+    return this._charts.flatMap(chart => chart.instance ? [chart.instance] : [])
   }
 
   /** Get the index of the currently active (focused) chart. */
@@ -320,7 +383,7 @@ export default class MultiChartLayout {
 
   /** Get the currently active chart instance. */
   getActiveChart(): AstroneumHandle | undefined {
-    return this._charts[this._activeIndex]?.instance
+    return this._charts[this._activeIndex]?.instance ?? undefined
   }
 
   /**
@@ -334,7 +397,7 @@ export default class MultiChartLayout {
     for (const i of targets) {
       const chart = this._charts[i]
       if (chart) {
-        chart.instance.setSymbol(symbol)
+        chart.instance?.setSymbol(symbol)
         this._slots[i] = { ...this._slots[i], symbol }
       }
     }
@@ -352,7 +415,7 @@ export default class MultiChartLayout {
     for (const i of targets) {
       const chart = this._charts[i]
       if (chart) {
-        chart.instance.setPeriod(period)
+        chart.instance?.setPeriod(period)
         this._slots[i] = { ...this._slots[i], period }
       }
     }
@@ -362,14 +425,14 @@ export default class MultiChartLayout {
   /** Set theme for all charts. */
   setTheme(theme: string): void {
     for (const { instance } of this._charts) {
-      instance.setTheme(theme)
+      instance?.setTheme(theme)
     }
   }
 
   /** Set locale for all charts. */
   setLocale(locale: string): void {
     for (const { instance } of this._charts) {
-      instance.setLocale(locale)
+      instance?.setLocale(locale)
     }
   }
 
@@ -380,6 +443,11 @@ export default class MultiChartLayout {
 
   /** Destroy all charts and clean up the DOM. */
   destroy(): void {
+    this._persist()
+    if (this._persistTimer !== null) {
+      window.clearInterval(this._persistTimer)
+      this._persistTimer = null
+    }
     this._destroy()
   }
 }

@@ -213,6 +213,10 @@ but the root re-exports for these modules will be removed in **v1.0**
 (see the [Roadmap](../README.md#v10--stability)). Migrate to the subpath
 import to be forward-compatible.
 
+`MultiChartLayout` persists the grid, active pane, and complete serialized state
+for each pane when given a `storageKey`; an explicit `count` takes precedence
+over a stored grid size.
+
 ```ts
 // recommended â€” forward-compatible with v1.0
 import { BarReplay } from '@tony01/astroneum/replay'

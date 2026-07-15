@@ -68,6 +68,12 @@ const PERIODS: Period[] = [
 ]
 
 const LIVE_EXCHANGES = new Set(['BINANCE', 'BINANCE_SPOT', 'BITGET', 'OKX'])
+const WORKSPACE_PREFERENCES_KEY = 'astroneum-demo-workspace-preferences'
+const PERSISTED_CHART_TYPES: ChartType[] = ['candle', 'candle_stroke', 'candle_up_stroke', 'candle_down_stroke', 'heikin_ashi', 'ohlc', 'area']
+
+function isLayoutCount(value: unknown): value is 1 | 2 | 4 | 8 | 16 {
+  return value === 1 || value === 2 || value === 4 || value === 8 || value === 16
+}
 
 interface IndicatorCatalogueEntry {
   name: string
@@ -364,6 +370,7 @@ export default function ChartTerminal() {
   const [layoutCount, setLayoutCount] = useState<1 | 2 | 4 | 8 | 16>(1)
   const [syncCrosshair, setSyncCrosshair] = useState(true)
   const [syncSymbolPeriod, setSyncSymbolPeriod] = useState(false)
+  const [workspacePreferencesLoaded, setWorkspacePreferencesLoaded] = useState(false)
   const lastPriceRef = useRef<number>(0)
   const [strategyResult, setStrategyResult] = useState<BacktestResult | null>(null)
   const [strategyError, setStrategyError] = useState<string | null>(null)
@@ -375,6 +382,28 @@ export default function ChartTerminal() {
   const toggleTheme = useCallback(() => {
     setTheme(t => (t === 'dark' ? 'light' : 'dark'))
   }, [])
+
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem(WORKSPACE_PREFERENCES_KEY) ?? '{}') as Record<string, unknown>
+      if (typeof stored.chartType === 'string' && PERSISTED_CHART_TYPES.includes(stored.chartType as ChartType)) setChartType(stored.chartType as ChartType)
+      if (isLayoutCount(stored.layoutCount)) setLayoutCount(stored.layoutCount)
+      if (typeof stored.syncCrosshair === 'boolean') setSyncCrosshair(stored.syncCrosshair)
+      if (typeof stored.syncSymbolPeriod === 'boolean') setSyncSymbolPeriod(stored.syncSymbolPeriod)
+    } catch { }
+    setWorkspacePreferencesLoaded(true)
+  }, [])
+
+  useEffect(() => {
+    if (!workspacePreferencesLoaded) return
+    try {
+      localStorage.setItem(WORKSPACE_PREFERENCES_KEY, JSON.stringify({ chartType, layoutCount, syncCrosshair, syncSymbolPeriod }))
+    } catch { }
+  }, [chartType, layoutCount, syncCrosshair, syncSymbolPeriod, workspacePreferencesLoaded])
+
+  useEffect(() => {
+    if (chartType !== 'heikin_ashi') chartRef.current?.setStyles({ candle: { type: chartType } as never })
+  }, [chartType, layoutCount])
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -392,13 +421,6 @@ export default function ChartTerminal() {
 
   const handleChartTypeChange = useCallback((type: ChartType) => {
     setChartType(type)
-    if (type === 'heikin_ashi') {
-      // Heikin-Ashi is a barStyle prop change (data transform), not a styles change
-      // The chart re-renders with barStyle='heikin_ashi' via the prop below
-    } else {
-      // Standard candle types are styles changes â€” apply via handle
-      chartRef.current?.setStyles({ candle: { type } as never })
-    }
   }, [])
 
   const toggleVolumeProfile = useCallback(() => {
@@ -677,6 +699,7 @@ export default function ChartTerminal() {
           period={period}
           periods={PERIODS}
           theme={theme}
+          chartType={chartType}
           count={layoutCount}
           syncCrosshair={syncCrosshair}
           syncSymbolPeriod={syncSymbolPeriod}
@@ -765,6 +788,7 @@ export default function ChartTerminal() {
       <ChartLayerProvider>
         <WorkspaceShell
           theme={theme}
+          storageKey="astroneum-demo-workspace-shell"
           toolbar={topbar}
           sidebar={<SidebarContent onSymbolSelect={handleWatchlistSelect} selectedTicker={symbol.ticker} symbol={symbol} datafeed={datafeed} getCurrentPrice={() => lastPriceRef.current} getIndicatorSources={getIndicatorSources} />}
           dock={<DockContent onPineCompiled={handlePineCompiled} onStrategyCompiled={handleStrategyCompiled} result={strategyResult} strategyError={strategyError} />}

@@ -133,3 +133,53 @@ test('layout manager duplicates, renames, timestamps, and confirms deletion', as
   await confirm.getByRole('button', { name: 'Delete layout' }).click()
   await expect(page.getByRole('menuitem', { name: /Desk layout/ })).toHaveCount(0)
 })
+
+test('workspace chrome restores sidebar, dock, chart type, and grid selection', async ({ page }) => {
+  const pageErrors: string[] = []
+  page.on('pageerror', error => { pageErrors.push(error.stack ?? error.message) })
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('', { waitUntil: 'networkidle' })
+  await page.getByRole('button', { name: 'Chart type' }).click()
+  await page.getByRole('button', { name: 'Area' }).click()
+  await expect(page.getByRole('button', { name: 'Chart type' })).toHaveAttribute('title', 'Chart type: Area')
+
+  await page.getByRole('button', { name: 'Chart layout' }).click()
+  await page.getByRole('button', { name: '2 columns' }).click()
+  expect(pageErrors).toEqual([])
+  await expect(page.locator('.astroneum-multi-cell')).toHaveCount(2)
+  await page.getByRole('button', { name: 'Hide panel' }).click()
+  await page.getByRole('button', { name: 'Minimize panel' }).click()
+  await page.waitForFunction(() => {
+    const shell = JSON.parse(localStorage.getItem('astroneum-demo-workspace-shell') ?? '{}') as { sidebarOpen?: boolean; dockOpen?: boolean }
+    const preferences = JSON.parse(localStorage.getItem('astroneum-demo-workspace-preferences') ?? '{}') as { chartType?: string; layoutCount?: number }
+    return shell.sidebarOpen === false && shell.dockOpen === false && preferences.chartType === 'area' && preferences.layoutCount === 2
+  })
+
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await expect(page.locator('.astroneum-workspace')).toHaveAttribute('data-sidebar', 'closed')
+  await expect(page.locator('.astroneum-workspace')).toHaveAttribute('data-dock', 'closed')
+  await expect(page.getByRole('button', { name: 'Chart type' })).toHaveAttribute('title', 'Chart type: Area')
+  await expect(page.locator('.astroneum-multi-cell')).toHaveCount(2)
+})
+
+test('multi-chart persists independent pane state', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('', { waitUntil: 'networkidle' })
+  await page.getByRole('button', { name: 'Chart layout' }).click()
+  await page.getByRole('button', { name: '2 columns' }).click()
+  const cells = page.locator('.astroneum-multi-cell')
+  await expect(cells).toHaveCount(2)
+  await cells.first().getByLabel('Period: 5m').click()
+  await page.waitForFunction(() => {
+    const layout = JSON.parse(localStorage.getItem('astroneum-demo-multi-layout') ?? '{}') as {
+      states?: Array<{ period?: { text?: string } }>
+    }
+    return layout.states?.[0]?.period?.text === '5m' && layout.states?.[1]?.period?.text === '1m'
+  })
+
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  const restoredCells = page.locator('.astroneum-multi-cell')
+  await expect(restoredCells).toHaveCount(2)
+  await expect(restoredCells.first().getByLabel('Period: 5m')).toHaveAttribute('aria-pressed', 'true')
+  await expect(restoredCells.nth(1).getByLabel('Period: 1m')).toHaveAttribute('aria-pressed', 'true')
+})

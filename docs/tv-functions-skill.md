@@ -92,9 +92,9 @@ Row format: `| Function | TV behavior | Status | Pointer | Notes |`. Pointer = w
 | Function | TV behavior | Status | Pointer | Notes |
 |---|---|---|---|---|
 | Single pane | One chart | `widget-native` | `AstroneumChart` default | |
-| 2×1, 1×2, 2×2, 3×1, 3×2, 4×4 grids | Multi-pane | `v1-deferred` | — | §12; v2 rebuild |
-| Sync crosshair across panes | Linked | `v1-deferred` | — | |
-| Layout selector | Grid picker | `v1-deferred` | — | |
+| 2×1, 1×2, 2×2, 4×2, 4×4 grids | Multi-pane | `native-chrome` | `MultiChartLayout`, `MultiChartView` | each pane restores its own serialized chart state |
+| Sync crosshair across panes | Linked | `native-chrome` | `MultiChartLayout` | toggle persisted with the workspace |
+| Layout selector | Grid picker | `native-chrome` | `LayoutPicker` | grid selection persisted with chart type |
 
 ### 3.4 Scales
 

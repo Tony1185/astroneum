@@ -38,7 +38,7 @@
 | 0.5 | Bottom dock (tab bar, 220px, 240ms slide, persisted) | `#footer-chart-panel` | ✅ Explicit CSS Grid dock row + `DockContent` persistent tab panels, resize handle, fixed-overlay maximize, collapse, report overflow/menu controls; dock begins right of the 52px rail | `PineEditorPanel`, `StrategyTesterPanel`, `TradingPanel` |
 | 0.6 | Footer (date range navigator, 28px) | `withdateranges` | ✅ `DateRangeNavigator` — 7 presets (1D/1W/1M/3M/1Y/5Y/ALL) + live visible-range readout via `ChartPlugin` engine bridge | `DateRangeNavigator` |
 
-> **Shell behavior (§4):** Sidebar collapse uses grid columns; `term-workspace-main` uses explicit CSS Grid chart/dock rows (240ms, `--term-dur`) so the chart ends exactly at the dock boundary. The 52px library `DrawingBar` extends through the dock height; the dock is inset to its right. Dock maximize is a fixed overlay and does not reflow the chart or rail. Collapse state is persisted per-user in `localStorage` key `astroneum:shell` (decoupled from chart `serializeState`). Below lg (1024px) the layout is chart-dominant: left rail hidden, sidebar + dock forced collapsed, topbar slimmed to brand + badges (symbol/timeframe live in the chart's `PeriodBar`). FAB overlay for the right rail is 🟦 v1.1.
+> **Shell behavior (§4):** Sidebar collapse uses grid columns; `term-workspace-main` uses explicit CSS Grid chart/dock rows (240ms, `--term-dur`) so the chart ends exactly at the dock boundary. The 52px library `DrawingBar` extends through the dock height; the dock is inset to its right. Dock maximize is a fixed overlay and does not reflow the chart or rail. Sidebar/dock open state, sizes, and maximize state persist per-user in `localStorage` key `astroneum-demo-workspace-shell`, separate from chart state. Below lg (1024px) the layout is chart-dominant: left rail hidden, sidebar + dock forced collapsed, topbar slimmed to brand + badges (symbol/timeframe live in the chart's `PeriodBar`). FAB overlay for the right rail is 🟦 v1.1.
 
 ## 1. Top toolbar — `#header-toolbar`  →  `design-astroneum.md` §5
 
@@ -58,7 +58,7 @@
 | 1.12 | Undo button | `#header-toolbar-undo-redo` | ✅ `UndoManager` + brand-bar button (disabled when empty) + `Ctrl+Z` wired in `ChartTerminal` | `UndoManager` |
 | 1.13 | Redo button | `#header-toolbar-undo-redo` | ✅ `UndoManager` + brand-bar button + `Ctrl+Y` / `Ctrl+Shift+Z` wired in `ChartTerminal` | `UndoManager` |
 | 1.14 | Fill-spacer (push right groups) | `fill-dlFDN0Zd` | ✅ CSS flex auto | |
-| 1.15 | Layout setup (grid picker) | `#header-toolbar-layouts` | ✅ `LayoutPicker` in demo topbar — 1/2/4/8/16 grid | `LayoutPicker` |
+| 1.15 | Layout setup (grid picker) | `#header-toolbar-layouts` | ✅ `LayoutPicker` in demo topbar — 1/2/4/8/16 grid, persisted with chart type and sync settings | `LayoutPicker` |
 | 1.16 | Save/Load button ("Unnamed" + state) | `#header-toolbar-save-load` | ✅ `SaveLoadMenu` — named layouts with autosave and active-layout recovery via `ChartTemplateManager` | `SaveLoadMenu` |
 | 1.17 | Manage layouts menu | `data-name="save-load-menu"` | ✅ `SaveLoadMenu` layout manager: save-as, load, rename, duplicate, timestamped rows, and confirmed delete | `SaveLoadMenu` |
 | 1.18 | Quick search button (Ctrl+K) | `#header-toolbar-quick-search` | ✅ `CommandPalette` — symbol search + actions, Ctrl+K wired in demo | `CommandPalette` |
