@@ -11,6 +11,7 @@ import {
   createSingleLineOptions, createMoreLineOptions,
   createPolygonOptions, createFibonacciOptions, createWaveOptions,
   createMagnetOptions, createCursorOptions, createForecastingOptions,
+  createAnnotationOptions,
   Icon
 } from './icons'
 
@@ -44,6 +45,7 @@ const DrawingBar: Component<DrawingBarProps> = props => {
   const [fibonacciIcon, setFibonacciIcon] = useState('fibonacciLine')
   const [waveIcon, setWaveIcon] = useState('abcd')
   const [forecastingIcon, setForecastingIcon] = useState('longPosition')
+  const [annotationIcon, setAnnotationIcon] = useState('simpleAnnotation')
 
   const [modeIcon, setModeIcon] = useState('weak_magnet')
   const [mode, setMode] = useState('normal')
@@ -64,9 +66,10 @@ const DrawingBar: Component<DrawingBarProps> = props => {
       { key: 'polygon', icon: polygonIcon, list: createPolygonOptions(props.locale), setter: setPolygonIcon },
       { key: 'fibonacci', icon: fibonacciIcon, list: createFibonacciOptions(props.locale), setter: setFibonacciIcon },
       { key: 'wave', icon: waveIcon, list: createWaveOptions(props.locale), setter: setWaveIcon },
-      { key: 'forecasting', icon: forecastingIcon, list: createForecastingOptions(props.locale), setter: setForecastingIcon }
+      { key: 'forecasting', icon: forecastingIcon, list: createForecastingOptions(props.locale), setter: setForecastingIcon },
+      { key: 'annotation', icon: annotationIcon, list: createAnnotationOptions(props.locale), setter: setAnnotationIcon }
     ]
-  }, [singleLineIcon, moreLineIcon, polygonIcon, fibonacciIcon, waveIcon, forecastingIcon, props.locale])
+  }, [singleLineIcon, moreLineIcon, polygonIcon, fibonacciIcon, waveIcon, forecastingIcon, annotationIcon, props.locale])
 
   const modes = useMemo(() => createMagnetOptions(props.locale), [props.locale])
 

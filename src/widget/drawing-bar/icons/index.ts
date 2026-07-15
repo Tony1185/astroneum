@@ -18,7 +18,8 @@ import {
   measure, zoomIn, keepDrawing,
   longPosition, shortPosition, positionForecast, barsPattern, ghostFeed, sector,
   anchoredVwap, fixedRangeVolumeProfile, anchoredVolumeProfile,
-  priceRange, dateRange, dateAndPriceRange, forecasting
+  priceRange, dateRange, dateAndPriceRange, forecasting,
+  textNote
 } from './icons'
 
 import type { SelectDataSourceItem } from '@/component'
@@ -86,7 +87,9 @@ export const mapping = {
   priceRange,
   dateRange,
   dateAndPriceRange,
-  forecasting
+  forecasting,
+  textNote,
+  simpleAnnotation: textNote
 }
 
 export function createSingleLineOptions (locale: string): SelectDataSourceItem[] {
@@ -189,5 +192,11 @@ export function createForecastingOptions (locale: string): SelectDataSourceItem[
     { key: 'priceRange', text: i18n('price_range', locale) },
     { key: 'dateRange', text: i18n('date_range', locale) },
     { key: 'dateAndPriceRange', text: i18n('date_and_price_range', locale) }
+  ]
+}
+
+export function createAnnotationOptions (locale: string): SelectDataSourceItem[] {
+  return [
+    { key: 'simpleAnnotation', text: i18n('text_note', locale) }
   ]
 }

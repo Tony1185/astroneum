@@ -183,3 +183,33 @@ test('multi-chart persists independent pane state', async ({ page }) => {
   await expect(restoredCells.first().getByLabel('Period: 5m')).toHaveAttribute('aria-pressed', 'true')
   await expect(restoredCells.nth(1).getByLabel('Period: 1m')).toHaveAttribute('aria-pressed', 'true')
 })
+
+test('drawings persist through save and load round-trip', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('', { waitUntil: 'networkidle' })
+  await page.waitForFunction(() => Boolean((window as unknown as { __astroneum?: unknown }).__astroneum))
+
+  const result = await page.evaluate(() => {
+    const chart = (window as unknown as { __astroneum: {
+      createOverlay: (overlay: { name: string; points?: Array<{ value?: number }> }) => string | null
+      removeOverlay: (filter?: { name?: string }) => boolean
+      serializeState: () => unknown
+      loadState: (state: unknown) => void
+    } }).__astroneum
+    chart.createOverlay({ name: 'horizontalStraightLine', points: [{ value: 100000 }] })
+    const saved = chart.serializeState() as { overlays?: Array<{ name: string }> }
+    const hasOverlay = saved.overlays?.some(o => o.name === 'horizontalStraightLine') ?? false
+    chart.removeOverlay()
+    chart.loadState(saved)
+    const restored = chart.serializeState() as { overlays?: Array<{ name: string }> }
+    return {
+      hasOverlay,
+      restoredCount: restored.overlays?.length ?? 0,
+      restoredNames: restored.overlays?.map(o => o.name) ?? [],
+    }
+  })
+
+  expect(result.hasOverlay).toBe(true)
+  expect(result.restoredCount).toBeGreaterThan(0)
+  expect(result.restoredNames).toContain('horizontalStraightLine')
+})

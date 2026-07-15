@@ -255,6 +255,8 @@
   "forecasting": "Forecasting",
   "volume_based": "Volume-based",
   "measurers": "Measurers",
+  "text_note": "Text",
+  "annotation": "Annotation",
   "symbol_search_all": "All",
   "symbol_search_stocks": "Stocks",
   "symbol_search_funds": "Funds",

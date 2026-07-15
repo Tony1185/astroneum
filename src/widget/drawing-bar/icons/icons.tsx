@@ -465,6 +465,12 @@ export const dateAndPriceRange = () => (
   </svg>
 )
 
+export const textNote = () => (
+  <svg className="icon-overlay" viewBox="0 0 22 22" width="52" height="38">
+    <path d="M5 4h12v2h-5v12h-2V6H5z" fill="currentColor"/>
+  </svg>
+)
+
 export const forecasting = () => (
   <svg className="icon-overlay" viewBox="0 0 28 28" width="52" height="38">
     <g fill="currentColor">

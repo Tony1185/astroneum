@@ -59,13 +59,19 @@ interface ChartIndicatorSnapshot {
 
 const PERIODS: Period[] = [
   { multiplier: 1, timespan: 'minute', text: '1m' },
+  { multiplier: 3, timespan: 'minute', text: '3m' },
   { multiplier: 5, timespan: 'minute', text: '5m' },
   { multiplier: 15, timespan: 'minute', text: '15m' },
+  { multiplier: 30, timespan: 'minute', text: '30m' },
   { multiplier: 1, timespan: 'hour', text: '1H' },
+  { multiplier: 2, timespan: 'hour', text: '2H' },
   { multiplier: 4, timespan: 'hour', text: '4H' },
   { multiplier: 1, timespan: 'day', text: 'D' },
   { multiplier: 1, timespan: 'week', text: 'W' },
 ]
+
+const PRIMARY_PERIODS: Period[] = PERIODS.filter(p => ['1m', '5m', '15m', '1H', '4H', 'D', 'W'].includes(p.text))
+const OVERFLOW_PERIODS: Period[] = PERIODS.filter(p => ['3m', '30m', '2H'].includes(p.text))
 
 const LIVE_EXCHANGES = new Set(['BINANCE', 'BINANCE_SPOT', 'BITGET', 'OKX'])
 const WORKSPACE_PREFERENCES_KEY = 'astroneum-demo-workspace-preferences'
@@ -332,6 +338,56 @@ function DockContent({ onPineCompiled, onStrategyCompiled, result, strategyError
 // library-blessed extension path â€” no forking (see design-astroneum.md Â§9).
 type ChartEngine = ChartPluginContext['chart']
 
+function IntervalOverflow({ currentPeriod, periods, onSelect }: { currentPeriod: Period; periods: Period[]; onSelect: (p: Period) => void }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const isActive = periods.some(p => p.text === currentPeriod.text)
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  return (
+    <div className="term-dropdown" ref={ref} style={{ display: 'inline-flex' }}>
+      <button
+        className={`term-toolbar-icon${isActive ? ' is-active' : ''}`}
+        onClick={() => setOpen(v => !v)}
+        title="More intervals"
+        aria-label="More intervals"
+        aria-expanded={open}
+        style={{ fontSize: 11 }}
+      >
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <circle cx="3" cy="7" r="1.2" fill="currentColor"/>
+          <circle cx="7" cy="7" r="1.2" fill="currentColor"/>
+          <circle cx="11" cy="7" r="1.2" fill="currentColor"/>
+        </svg>
+      </button>
+      {open && (
+        <div className="term-dropdown-menu" style={{ minWidth: 80 }}>
+          {periods.map(p => (
+            <button
+              key={p.text}
+              className={`term-dropdown-item ${p.text === currentPeriod.text ? 'is-active' : ''}`}
+              onClick={() => { onSelect(p); setOpen(false) }}
+            >
+              <span className="term-dropdown-item-label">{p.text}</span>
+              {p.text === currentPeriod.text && (
+                <svg className="term-dropdown-item-check" width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M2 7l3 3 7-7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // â”€â”€ Main terminal component â”€â”€
 export default function ChartTerminal() {
   const chartRef = useRef<AstroneumHandle>(null)
@@ -381,6 +437,11 @@ export default function ChartTerminal() {
 
   const toggleTheme = useCallback(() => {
     setTheme(t => (t === 'dark' ? 'light' : 'dark'))
+  }, [])
+
+  const handlePeriodChange = useCallback((p: Period) => {
+    chartRef.current?.setPeriod(p)
+    setPeriod(p)
   }, [])
 
   useEffect(() => {
@@ -554,7 +615,7 @@ export default function ChartTerminal() {
         leading={<><span className="term-brand">Astroneum</span><span className="term-source-badge">{sourceBadgeText}</span><SaveLoadMenu chartRef={chartRef} /><button className="term-toolbar-icon" onClick={undo} disabled={!undoRef.current?.canUndo} aria-label="Undo" data-history-version={historyVersion}>Undo</button><button className="term-toolbar-icon" onClick={redo} disabled={!undoRef.current?.canRedo} aria-label="Redo">Redo</button></>}
       context={<>
         <button className="term-toolbar-control" onClick={() => chartToolbarRef.current?.openSymbolSearch()}>{symbol.shortName ?? symbol.ticker}</button>
-        <div className="term-toolbar-periods">{PERIODS.map(item => <button key={item.text} className={item.text === period.text ? 'is-active' : ''} onClick={() => handlePeriodChange(item)}>{item.text}</button>)}</div>
+        <div className="term-toolbar-periods">{PRIMARY_PERIODS.map(item => <button key={item.text} className={item.text === period.text ? 'is-active' : ''} onClick={() => handlePeriodChange(item)}>{item.text}</button>)}{OVERFLOW_PERIODS.length > 0 && <IntervalOverflow currentPeriod={period} periods={OVERFLOW_PERIODS} onSelect={handlePeriodChange} />}</div>
         <button className="term-toolbar-control" onClick={() => chartToolbarRef.current?.openIndicators()}>Indicators</button>
         <button className="term-toolbar-icon" onClick={() => chartToolbarRef.current?.openAlert()} aria-label="Create alert">Alert</button>
         <button className="term-toolbar-icon" onClick={() => chartToolbarRef.current?.toggleDrawingBar()} aria-label="Toggle drawing tools">Draw</button>
@@ -721,11 +782,6 @@ export default function ChartTerminal() {
     chartRef.current?.setSymbol(sym)
   }, [])
 
-  const handlePeriodChange = useCallback((p: Period) => {
-    chartRef.current?.setPeriod(p)
-    setPeriod(p)
-  }, [])
-
   const handlePineCompiled = useCallback((name: string) => {
     void name
   }, [])
@@ -777,11 +833,16 @@ export default function ChartTerminal() {
       if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
         e.preventDefault()
         setCmdkOpen(v => !v)
+        return
+      }
+      if (e.key === ',') {
+        const currentIndex = PERIODS.findIndex(p => p.text === period.text)
+        if (currentIndex >= 0) handlePeriodChange(PERIODS[(currentIndex + 1) % PERIODS.length])
       }
     }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
-  }, [redo, undo])
+  }, [redo, undo, period])
 
   return (
     <LayerProvider>

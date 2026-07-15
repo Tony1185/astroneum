@@ -48,7 +48,7 @@
 | 1.2 | Switch data type (icon button) | `#header-toolbar-switch-data-type` | ❌ | |
 | 1.3 | Compare symbols button | `#header-toolbar-compare` | 🟦 | |
 | 1.4 | Timeframe radiogroup (1h/4h/D/W) | `#header-toolbar-intervals` | ✅ `PeriodBar` periods | `PeriodBar` |
-| 1.5 | Chart interval dropdown (`,`) | `menuBtn-U9b0TAs4` | 🔧 `PeriodBar` has period buttons, no overflow dropdown — `,` hotkey not wired. Deferred to a library `PeriodBar` pass | |
+| 1.5 | Chart interval dropdown (`,`) | `menuBtn-U9b0TAs4` | ✅ Primary periods in topbar + overflow dropdown (3m, 30m, 2H); `,` hotkey cycles all intervals | `ChartTerminal` |
 | 1.6 | Chart style menu (Candles) | `#header-toolbar-chart-styles` | ✅ `ChartTypeDropdown` | `ChartTypeDropdown` |
 | 1.7 | Indicators dialog button (`/`) | `data-name="open-indicators-dialog"` | ✅ `IndicatorModal` — `/` hotkey wired in `AstroneumChart.tsx` | `IndicatorModal` |
 | 1.8 | Favorite indicators menu | `data-name="show-favorite-indicators"` | 🟦 v1.1 — needs an indicator-favorites model + menu | |
@@ -78,7 +78,7 @@
 | 2.4 | XABCD pattern + Patterns submenu | `linetool-group-patterns` | 🔧 `wave` group — missing Cypher, Crab, Bat, Butterfly, Three Drives, Elliott Impulse | |
 | 2.5 | Long position + Forecasting submenu | `linetool-group-prediction-and-measurement` | ✅ `DrawingBar` forecasting group - 12 tools in 3 sections (Forecasting, Volume-based, Measurers) with section headers. Overlays in `src/extension/`: `longPosition`, `shortPosition`, `positionForecast`, `barsPattern`, `ghostFeed`, `sector`, `anchoredVwap`, `fixedRangeVolumeProfile`, `anchoredVolumeProfile`, `priceRange`, `dateRange`, `dateAndPriceRange` | `DrawingBar` forecasting group |
 | 2.6 | Brush + Geometric shapes submenu | `linetool-group-geometric-shapes` | 🔧 `polygon` group (circle, rect, triangle, parallelogram) ??? popup now visible after clipping fix. Missing: Brush, Ellipse, Polygon, Polyline | |
-| 2.7 | Text + Annotation submenu | `linetool-group-annotation` | ❌ | |
+| 2.7 | Text + Annotation submenu | `linetool-group-annotation` | ✅ `DrawingBar` annotation group with `simpleAnnotation` text tool | `DrawingBar` |
 | 2.8 | Icon + Icons submenu (font icons) | `linetool-group-font-icons` | ❌ | |
 | 2.9 | Measure button (Shift+Click) | `data-name="measure"` | ✅ `DrawingBar` measure button + Shift+Click on chart canvas | `measure` |
 | 2.10 | Zoom in button | `data-name="zoom"` | ✅ `DrawingBar` zoom button — `zoomAtCoordinate(1.2, center)` | `DrawingBar` |
